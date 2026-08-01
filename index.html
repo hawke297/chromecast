@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>One Piece Player</title>
+    <!-- Das Google Cast Receiver SDK laden -->
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <style>
+        /* Ein bisschen Styling passend zu deinem Tkinter-Theme */
+        body { 
+            background-color: #1e1e2e; 
+            margin: 0; 
+            overflow: hidden; 
+        }
+        
+        /* Den Standard-Google-Player anpassen */
+        cast-media-player {
+            --theme-font-family: 'Helvetica', sans-serif;
+            --progress-color: #7bce78; /* Dein Grün für den Ladebalken */
+            --background-color: #1e1e2e;
+            --splash-image: url('https://upload.wikimedia.org/wikipedia/de/thumb/b/bb/One_Piece_Logo.svg/1200px-One_Piece_Logo.svg.png');
+        }
+
+        /* Hier kommen später unsere Custom Overlays rein (Intro-Button etc.) */
+        #custom-overlay {
+            position: absolute;
+            top: 50px;
+            right: 50px;
+            color: white;
+            font-size: 24px;
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Hier rendert Google das Video -->
+    <cast-media-player></cast-media-player>
+    
+    <!-- Unser Overlay Container -->
+    <div id="custom-overlay">Beispiel Overlay</div>
+
+    <script>
+        // Den Receiver initialisieren und starten
+        const context = cast.framework.CastReceiverContext.getInstance();
+        
+        // Logik für künftige Overlays und Custom Messages bereiten wir hier vor
+        // ... (folgt im nächsten Schritt) ...
+
+        context.start();
+    </script>
+</body>
+</html>
