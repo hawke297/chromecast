@@ -5,7 +5,7 @@
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
-        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; }
+        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         #custom-overlay {
             position: absolute; top: 20px; right: 20px; background-color: red;
             padding: 15px; font-size: 24px; z-index: 9999; display: block; border-radius: 8px; font-weight: bold;
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>Version 1.6 - Video Test</h1>
+    <h1>v1.7 - Rückkanal</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <cast-media-player></cast-media-player>
 
@@ -23,21 +23,34 @@
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
 
+        let activeSenderId = null;
+
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
+        // --- Hilfsfunktion zum Senden an Python ---
+        function sendToPython(messageObj) {
+            if (activeSenderId) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, messageObj);
+            }
+        }
+
+        // --- Eingehende Befehle von Python ---
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
+            activeSenderId = customEvent.senderId; // Absender merken!
             const data = customEvent.data;
             const overlay = document.getElementById('custom-overlay');
             
-            if (data.type === "SET_TEXT") {
+            if (data.type === "PING") {
+                sendToPython({ type: "PONG", message: "TV ist bereit!" });
+            }
+            else if (data.type === "SET_TEXT") {
                 overlay.innerHTML = data.text;
             } 
             else if (data.type === "TOGGLE_OVERLAY") {
                 overlay.style.display = data.visible ? "block" : "none";
             }
-            // NEU: Video-Ladebefehl abfangen!
             else if (data.type === "LOAD_VIDEO") {
                 overlay.innerHTML = "Lade Video...";
                 let request = new cast.framework.messages.LoadRequestData();
@@ -52,6 +65,31 @@
                 playerManager.load(request);
             }
         });
+
+        // --- DAS NERVENSYSTEM (Wir petzen an Python) ---
+        
+        // 1. Zeit-Updates
+        playerManager.addEventListener(
+            cast.framework.events.EventType.TIME_UPDATE,
+            (event) => {
+                sendToPython({
+                    type: "TIME_UPDATE",
+                    currentTime: event.currentMediaTime,
+                    duration: playerManager.getDuration()
+                });
+            }
+        );
+
+        // 2. Status-Änderungen (Play/Pause über Fernbedienung etc.)
+        playerManager.addEventListener(
+            cast.framework.events.EventType.PLAYER_STATE_CHANGED,
+            (event) => {
+                sendToPython({
+                    type: "STATE_CHANGED",
+                    playerState: event.value
+                });
+            }
+        );
 
         context.start(options);
     </script>
