@@ -2,61 +2,19 @@
 <html>
 <head>
     <title>One Piece Player</title>
-    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <style>
-        body { 
-            background-color: #1e1e2e; 
-            margin: 0; 
-            overflow: hidden; 
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        
-        cast-media-player {
-            --background-color: #1e1e2e;
-        }
-
-        #version-overlay {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 24px;
-            font-weight: bold;
-            z-index: 1000;
-        }
-
-        #custom-overlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background-color: red;
-            padding: 15px;
-            font-size: 24px;
-            z-index: 1000;
-        }
-    </style>
+    <!-- WICHTIG: Explizit https:// eingefügt! -->
+    <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
 </head>
-<body>
+<body style="background-color: blue; margin: 0; padding: 50px; font-family: Arial, sans-serif; color: white;">
+    
+    <h1>Version 1.3 - Der Blaue Bildschirm!</h1>
     
     <cast-media-player></cast-media-player>
-    
-    <div id="version-overlay">Version 1.2 (Bulletproof)</div>
-    <div id="custom-overlay">Ich lebe!</div>
 
     <script>
-        // Wir packen den Start in einen try-catch-Block. 
-        // Falls was crasht, fangen wir es ab, bevor Google den Stecker zieht!
-        try {
-            const context = cast.framework.CastReceiverContext.getInstance();
-            
-            const options = new cast.framework.CastReceiverOptions();
-            options.customNamespaces = {};
-            options.customNamespaces['urn:x-cast:op.viewer'] = cast.framework.system.MessageType.JSON;
-            
-            context.start(options);
-        } catch (e) {
-            document.getElementById('custom-overlay').innerHTML = "Fehler beim Starten!";
-        }
+        // Absolutes Minimum. Keine Custom Channels, kein Schnickschnack.
+        const context = cast.framework.CastReceiverContext.getInstance();
+        context.start();
     </script>
 </body>
 </html>
