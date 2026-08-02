@@ -60,7 +60,7 @@
 
         // ---> NEU: Den Kanal offiziell beim Chromecast anmelden! <---
         const options = new cast.framework.CastReceiverOptions();
-        options.customNamespaces = Object.assign({});
+        options.customNamespaces = {}; // <-- HIER: Das ist die sichere, absturzfreie Schreibweise
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
         // Unser Zuhörer
