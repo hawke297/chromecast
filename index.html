@@ -12,7 +12,6 @@
             color: white; 
         }
         
-        /* Wir zwingen den Text VOR den Player */
         h1 { 
             position: absolute; 
             top: 20px; 
@@ -21,7 +20,20 @@
             text-shadow: 2px 2px 4px #000000;
         }
 
-        /* Der Player bleibt im Hintergrund */
+        /* Unser Overlay-Kasten, den wir fernsteuern wollen */
+        #custom-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: red;
+            padding: 15px;
+            font-size: 24px;
+            z-index: 9999;
+            display: block; /* Standardmäßig sichtbar */
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
         cast-media-player {
             z-index: 1;
         }
@@ -29,13 +41,35 @@
 </head>
 <body>
     
-    <h1>Version 1.4 - Der Schwebe-Test!</h1>
+    <h1>Version 1.5 - Namespace Test</h1>
+    
+    <!-- Das ist der Kasten, den wir per Python verändern -->
+    <div id="custom-overlay">Warte auf Signal...</div>
     
     <cast-media-player></cast-media-player>
 
     <script>
         const context = cast.framework.CastReceiverContext.getInstance();
-        context.start();
+        const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
+
+        const options = new cast.framework.CastReceiverOptions();
+        options.customNamespaces = {};
+        options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
+
+        // Der Zuhörer für unsere UI-Befehle
+        context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
+            const data = customEvent.data;
+            const overlay = document.getElementById('custom-overlay');
+            
+            if (data.type === "SET_TEXT") {
+                overlay.innerHTML = data.text;
+            } 
+            else if (data.type === "TOGGLE_OVERLAY") {
+                overlay.style.display = data.visible ? "block" : "none";
+            }
+        });
+
+        context.start(options);
     </script>
 </body>
 </html>
