@@ -43,11 +43,29 @@
     <div id="custom-overlay">Beispiel Overlay</div>
 
     <script>
-        // Den Receiver initialisieren und starten
         const context = cast.framework.CastReceiverContext.getInstance();
+        const playerManager = context.getPlayerManager();
         
-        // Logik für künftige Overlays und Custom Messages bereiten wir hier vor
-        // ... (folgt im nächsten Schritt) ...
+        // Unser privater Funkkanal!
+        const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
+
+        context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
+            console.log("Nachricht von Python erhalten:", customEvent.data);
+            
+            // Wenn Python sagt: "Video laden"
+            if (customEvent.data.type === "LOAD_VIDEO") {
+                let mediaInfo = new cast.framework.messages.MediaInformation();
+                mediaInfo.contentId = customEvent.data.url;
+                mediaInfo.contentType = customEvent.data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
+
+                let request = new cast.framework.messages.LoadRequestData();
+                request.media = mediaInfo;
+                request.currentTime = customEvent.data.startTime || 0;
+
+                // Wir zwingen den Player, das Video zu laden (intern, ohne Google-Einmischung)
+                playerManager.load(request);
+            }
+        });
 
         context.start();
     </script>
