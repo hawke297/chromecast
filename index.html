@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>Version 1.7 - Der sanfte Rückkanal (Debug)</h1>
+    <h1>Version 1.8 - Metadaten Injektion</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <cast-media-player></cast-media-player>
 
@@ -41,16 +41,22 @@
                 overlay.style.display = data.visible ? "block" : "none";
             }
             else if (data.type === "LOAD_VIDEO") {
-                overlay.innerHTML = "Lade Video...";
-                
-                // --- DEBUG 1: TV bestätigt den Empfang des Lade-Befehls ---
-                context.sendCustomMessage(CUSTOM_CHANNEL, senderId, { type: "DEBUG", message: "TV hat LOAD_VIDEO Befehl erhalten!" });
-
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
+                
+                // --- Die harte Laufzeit überschreiben! ---
+                if (data.duration) {
+                    mediaInfo.duration = parseFloat(data.duration);
+                }
+                
+                // --- Titel & Untertitel für den Google-Player ---
+                let metadata = new cast.framework.messages.GenericMediaMetadata();
+                metadata.title = data.title || "Unbekanntes Video";
+                metadata.subtitle = data.subtitle || "";
+                mediaInfo.metadata = metadata;
                 
                 request.media = mediaInfo;
                 request.autoplay = true;
@@ -58,24 +64,15 @@
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
-                
-                // --- DEBUG 2: Der Timer funkt alles gnadenlos zurück ---
                 timeUpdateInterval = setInterval(() => {
                     try {
-                        let currentTime = playerManager.getCurrentTimeSec();
-                        let duration = playerManager.getDurationSec();
-                        
                         context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
                             type: "TIME_UPDATE",
-                            currentTime: currentTime,
-                            duration: duration
+                            currentTime: playerManager.getCurrentTimeSec(),
+                            duration: playerManager.getDurationSec()
                         });
                     } catch (e) {
-                        // KEIN lautloses Ignorieren mehr! Sende Fehler an Python!
-                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
-                            type: "ERROR",
-                            message: "Fehler beim Zeit-Auslesen: " + e.toString()
-                        });
+                        // Fehler beim Zeitlesen ignorieren
                     }
                 }, 1000); 
             }
