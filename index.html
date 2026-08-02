@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>v1.7 - Rückkanal</h1>
+    <h1>v1.8 - Bulletproof</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <cast-media-player></cast-media-player>
 
@@ -29,23 +29,21 @@
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
-        // --- Hilfsfunktion zum Senden an Python ---
+        // Hilfsfunktion mit Absturz-Schutz
         function sendToPython(messageObj) {
             if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, messageObj);
+                try {
+                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, messageObj);
+                } catch(e) { /* Lautlos ignorieren */ }
             }
         }
 
-        // --- Eingehende Befehle von Python ---
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
-            activeSenderId = customEvent.senderId; // Absender merken!
+            activeSenderId = customEvent.senderId; 
             const data = customEvent.data;
             const overlay = document.getElementById('custom-overlay');
             
-            if (data.type === "PING") {
-                sendToPython({ type: "PONG", message: "TV ist bereit!" });
-            }
-            else if (data.type === "SET_TEXT") {
+            if (data.type === "SET_TEXT") {
                 overlay.innerHTML = data.text;
             } 
             else if (data.type === "TOGGLE_OVERLAY") {
@@ -66,28 +64,34 @@
             }
         });
 
-        // --- DAS NERVENSYSTEM (Wir petzen an Python) ---
-        
-        // 1. Zeit-Updates
+        // 1. Zeit-Updates (Repariert & Abgesichert)
         playerManager.addEventListener(
             cast.framework.events.EventType.TIME_UPDATE,
             (event) => {
-                sendToPython({
-                    type: "TIME_UPDATE",
-                    currentTime: event.currentMediaTime,
-                    duration: playerManager.getDuration()
-                });
+                try {
+                    // KORREKTUR: getDurationSec()
+                    let duration = playerManager.getDurationSec(); 
+                    if (isNaN(duration)) duration = 0;
+                    
+                    sendToPython({
+                        type: "TIME_UPDATE",
+                        currentTime: event.currentMediaTime,
+                        duration: duration
+                    });
+                } catch(e) {}
             }
         );
 
-        // 2. Status-Änderungen (Play/Pause über Fernbedienung etc.)
+        // 2. Status-Änderungen (Abgesichert)
         playerManager.addEventListener(
             cast.framework.events.EventType.PLAYER_STATE_CHANGED,
             (event) => {
-                sendToPython({
-                    type: "STATE_CHANGED",
-                    playerState: event.value
-                });
+                try {
+                    sendToPython({
+                        type: "STATE_CHANGED",
+                        playerState: event.value
+                    });
+                } catch(e) {}
             }
         );
 
