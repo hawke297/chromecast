@@ -5,7 +5,7 @@
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
-        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; }
+        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         #custom-overlay {
             position: absolute; top: 20px; right: 20px; background-color: red;
             padding: 15px; font-size: 24px; z-index: 9999; display: block; border-radius: 8px; font-weight: bold;
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>Version 1.6 - Video Test</h1>
+    <h1>Version 1.7 - Der sanfte Rückkanal (Debug)</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <cast-media-player></cast-media-player>
 
@@ -27,9 +27,12 @@
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
+        let timeUpdateInterval = null;
+
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             const overlay = document.getElementById('custom-overlay');
+            const senderId = customEvent.senderId;
             
             if (data.type === "SET_TEXT") {
                 overlay.innerHTML = data.text;
@@ -37,9 +40,12 @@
             else if (data.type === "TOGGLE_OVERLAY") {
                 overlay.style.display = data.visible ? "block" : "none";
             }
-            // NEU: Video-Ladebefehl abfangen!
             else if (data.type === "LOAD_VIDEO") {
                 overlay.innerHTML = "Lade Video...";
+                
+                // --- DEBUG 1: TV bestätigt den Empfang des Lade-Befehls ---
+                context.sendCustomMessage(CUSTOM_CHANNEL, senderId, { type: "DEBUG", message: "TV hat LOAD_VIDEO Befehl erhalten!" });
+
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 
@@ -50,6 +56,28 @@
                 request.autoplay = true;
                 
                 playerManager.load(request);
+
+                if (timeUpdateInterval) clearInterval(timeUpdateInterval);
+                
+                // --- DEBUG 2: Der Timer funkt alles gnadenlos zurück ---
+                timeUpdateInterval = setInterval(() => {
+                    try {
+                        let currentTime = playerManager.getCurrentTimeSec();
+                        let duration = playerManager.getDurationSec();
+                        
+                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
+                            type: "TIME_UPDATE",
+                            currentTime: currentTime,
+                            duration: duration
+                        });
+                    } catch (e) {
+                        // KEIN lautloses Ignorieren mehr! Sende Fehler an Python!
+                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
+                            type: "ERROR",
+                            message: "Fehler beim Zeit-Auslesen: " + e.toString()
+                        });
+                    }
+                }, 1000); 
             }
         });
 
