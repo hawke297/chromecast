@@ -5,69 +5,84 @@
     <!-- Das Google Cast Receiver SDK laden -->
     <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
-        /* Ein bisschen Styling passend zu deinem Tkinter-Theme */
         body { 
-            background-color: #7bce78; 
+            background-color: #1e1e2e; 
             margin: 0; 
             overflow: hidden; 
         }
         
-        /* Den Standard-Google-Player anpassen */
         cast-media-player {
             --theme-font-family: 'Helvetica', sans-serif;
-            --progress-color: #7bce78; /* Dein Grün für den Ladebalken */
+            --progress-color: #7bce78; 
             --background-color: #1e1e2e;
             --splash-image: url('https://upload.wikimedia.org/wikipedia/de/thumb/b/bb/One_Piece_Logo.svg/1200px-One_Piece_Logo.svg.png');
         }
 
-        /* Hier kommen später unsere Custom Overlays rein (Intro-Button etc.) */
+        /* NEU: Die Versionsnummer oben links */
+        #version-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.5); /* Leicht transparentes Weiß */
+            font-family: 'Helvetica', sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        /* Unser Test-Kasten oben rechts */
         #custom-overlay {
             position: absolute;
             top: 50px;
             right: 50px;
-            background-color: red; /* Roter Hintergrund! */
-            padding: 15px;         /* Etwas Platz */
+            background-color: red;
+            padding: 15px;
             color: white;
             font-size: 24px;
-            display: block;        /* WICHTIG: block statt none! */
+            display: block;
             z-index: 1000;
         }
     </style>
 </head>
 <body>
     
-    <!-- Hier rendert Google das Video -->
     <cast-media-player></cast-media-player>
     
-    <!-- Unser Overlay Container -->
+    <!-- NEU: Eindeutige Versionskennung auf dem TV -->
+    <div id="version-overlay">Version 1.1 (Mit Funkkanal)</div>
+    
     <div id="custom-overlay">Beispiel Overlay</div>
 
     <script>
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
-        
-        // Unser privater Funkkanal!
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
 
-        context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
-            console.log("Nachricht von Python erhalten:", customEvent.data);
-            
-            // Wenn Python sagt: "Video laden"
-            if (customEvent.data.type === "LOAD_VIDEO") {
-                let mediaInfo = new cast.framework.messages.MediaInformation();
-                mediaInfo.contentId = customEvent.data.url;
-                mediaInfo.contentType = customEvent.data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
+        // ---> NEU: Den Kanal offiziell beim Chromecast anmelden! <---
+        const options = new cast.framework.CastReceiverOptions();
+        options.customNamespaces = Object.assign({});
+        options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
+        // Unser Zuhörer
+        context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
+            if (customEvent.data && customEvent.data.type === "LOAD_VIDEO") {
                 let request = new cast.framework.messages.LoadRequestData();
+                let mediaInfo = new cast.framework.messages.MediaInformation();
+                
+                mediaInfo.contentId = customEvent.data.url;
+                mediaInfo.contentType = customEvent.data.url.indexOf('.m3u8') !== -1 ? 'application/x-mpegurl' : 'video/mp4';
+                
                 request.media = mediaInfo;
                 request.currentTime = customEvent.data.startTime || 0;
-
-                // Wir zwingen den Player, das Video zu laden (intern, ohne Google-Einmischung)
+                request.autoplay = true; // Video sofort starten
+                
+                // Wir zwingen den Player, das Video zu laden
                 playerManager.load(request);
             }
         });
 
-        context.start();
+        // Die Optionen beim Start übergeben
+        context.start(options);
     </script>
 </body>
 </html>
