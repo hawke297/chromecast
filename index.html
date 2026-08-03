@@ -8,13 +8,13 @@
             --clock-display: block;
             --clock-color: #eeeeee;
             --progress-color: #e50914;
-            --ui-bg-color: transparent; /* Neuer Standard */
-            --ui-border: none; /* Neuer Standard */
-            --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; /* Neuer Standard */
-            --ui-box-shadow: none; /* Neuer Standard */
-            --ui-bottom-offset: 0px; /* Neuer Standard (Full Width) */
-            --ui-side-margin: 0px; /* Neuer Standard (Full Width) */
-            --ui-border-radius: 0px; /* Neuer Standard (Full Width) */
+            --ui-bg-color: transparent; 
+            --ui-border: none; 
+            --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
+            --ui-box-shadow: none; 
+            --ui-bottom-offset: 0px; 
+            --ui-side-margin: 0px; 
+            --ui-border-radius: 0px; 
         }
 
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.003</h1>
+    <h1 id="version-display">hawke297 player | v2.0.004</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -79,7 +79,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.003";
+        const PLAYER_VERSION = "2.0.004";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -122,6 +122,8 @@
                 notif.style.top = "30px"; notif.style.right = "30px";
             } else if (config.position === "bottom") {
                 notif.style.bottom = "150px"; notif.style.left = "50%"; notif.style.transform = "translateX(-50%)";
+            } else if (config.position === "top-left") {
+                notif.style.top = "100px"; notif.style.left = "30px";
             }
 
             layer.appendChild(notif);
@@ -219,7 +221,6 @@
                 let bgImage = document.getElementById('bg-image');
                 if (data.bg_image) {
                     bgImage.src = data.bg_image;
-                    // Standardmäßig nicht sichtbar, wird vom Interval gesteuert
                 }
                 
                 currentSkips = data.skips || [];
@@ -243,11 +244,11 @@
                     try {
                         let currentState = playerManager.getPlayerState();
                         
-                        // --- NEU: HINTERGRUNDBILD LOGIK ---
+                        // Das Bild wird 100% deckend eingeblendet, wenn Idle
                         if (currentState === 'IDLE' || currentState === 'BUFFERING') {
-                            document.getElementById('bg-image').style.opacity = "1.0"; // Voll sichtbar wenn nichts läuft!
+                            document.getElementById('bg-image').style.opacity = "1.0";
                         } else {
-                            document.getElementById('bg-image').style.opacity = "0.15"; // Dunkel im Hintergrund beim Schauen
+                            document.getElementById('bg-image').style.opacity = "0.15";
                         }
 
                         if (currentState !== lastPlayerState) {
