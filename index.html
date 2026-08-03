@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>One Piece Player</title>
+    <title>hawke297 Custom Player</title>
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
+        
+        /* Das unsichtbare Versions-Label beim Start */
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
-        /* Das generische Overlay (für Sleep-Timer etc.) */
         #custom-overlay {
             position: absolute; top: 30px; right: 30px; 
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -15,7 +16,6 @@
             border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
         }
 
-        /* NEU: Die Uhrzeit oben rechts */
         #clock-ui {
             position: absolute; top: 30px; right: 30px; 
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -24,7 +24,6 @@
             text-shadow: 1px 1px 2px black;
         }
 
-        /* Das Design für den Custom-Fortschrittsbalken */
         #progress-ui {
             position: absolute; bottom: 40px; left: 5%; right: 5%;
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -43,14 +42,23 @@
             transition: width 0.5s linear;
         }
         
-        cast-media-player { z-index: 1; --background-color: #1e1e2e; }
+        /* DER KILL-SWITCH FÜR DIE GOOGLE STANDARD-UI */
+        cast-media-player { 
+            z-index: 1; 
+            --background-color: #1e1e2e; 
+            --playback-controls-display: none;
+            --splash-display: none;
+            --splash-clear-display: none;
+            --watermark-display: none;
+            --metadata-title-display: none;
+            --metadata-subtitle-display: none;
+        }
     </style>
 </head>
 <body>
     <h1 id="version-display">Lade Version...</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     
-    <!-- NEU: Das HTML für die Uhr -->
     <div id="clock-ui">00:00</div>
     
     <div id="progress-ui">
@@ -63,8 +71,8 @@
     <cast-media-player></cast-media-player>
 
     <script>
-        const PLAYER_VERSION = "1.12";
-        document.getElementById('version-display').innerText = "Player Version " + PLAYER_VERSION;
+        const PLAYER_VERSION = "1.13";
+        document.getElementById('version-display').innerText = "Hawke297 Player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
@@ -86,12 +94,26 @@
             return m + ":" + (s < 10 ? "0" : "") + s;
         }
 
-        // Hilfsfunktion: Aktuelle reale Uhrzeit holen
         function updateClock() {
             let now = new Date();
             let h = now.getHours();
             let m = now.getMinutes();
             document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        }
+
+        function showCustomUI(keepOpen) {
+            document.getElementById('progress-ui').style.display = 'block';
+            document.getElementById('clock-ui').style.display = 'block';
+            updateClock();
+            
+            if (uiTimeout) clearTimeout(uiTimeout);
+            
+            if (!keepOpen) {
+                uiTimeout = setTimeout(() => {
+                    document.getElementById('progress-ui').style.display = 'none';
+                    document.getElementById('clock-ui').style.display = 'none';
+                }, 4000);
+            }
         }
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
@@ -109,16 +131,7 @@
                 overlay.style.display = data.visible ? "block" : "none";
             }
             else if (data.type === "SHOW_PROGRESS") {
-                // Beide UI-Elemente einblenden
-                document.getElementById('progress-ui').style.display = 'block';
-                document.getElementById('clock-ui').style.display = 'block';
-                updateClock(); // Einmalig Uhrzeit sofort setzen
-                
-                if (uiTimeout) clearTimeout(uiTimeout);
-                uiTimeout = setTimeout(() => {
-                    document.getElementById('progress-ui').style.display = 'none';
-                    document.getElementById('clock-ui').style.display = 'none';
-                }, 5000);
+                showCustomUI(false); // Zeigen und nach 4 Sekunden wieder verstecken
             }
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
@@ -129,8 +142,9 @@
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
                 
+                // Titel neutralisieren
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
-                metadata.title = data.title || "One Piece";
+                metadata.title = data.title || "Custom Stream";
                 metadata.subtitle = data.subtitle || "";
                 mediaInfo.metadata = metadata;
                 
@@ -147,18 +161,25 @@
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
+                            
+                            // INTELLIGENTE UI-STEUERUNG
+                            if (currentState === 'PAUSED' || currentState === 'BUFFERING') {
+                                showCustomUI(true); // Dauerhaft anzeigen
+                            } else if (currentState === 'PLAYING') {
+                                showCustomUI(false); // Nach 4 Sekunden ausblenden
+                            }
+                            
                             lastPlayerState = currentState;
                         }
 
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
 
-                        // UI aktualisieren, falls sichtbar
                         if (document.getElementById('progress-ui').style.display === 'block') {
                             document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                             let percent = (dur > 0) ? (cur / dur * 100) : 0;
                             document.getElementById('progress-bar-fill').style.width = percent + '%';
-                            updateClock(); // Uhrzeit sekündlich aktualisieren
+                            updateClock(); 
                         }
 
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
