@@ -6,7 +6,6 @@
     <style>
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         
-        /* Das unsichtbare Versions-Label beim Start */
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
         #custom-overlay {
@@ -42,7 +41,7 @@
             transition: width 0.5s linear;
         }
         
-        /* DER KILL-SWITCH FÜR DIE GOOGLE STANDARD-UI */
+        /* Die CSS-Variablen lassen wir sicherheitshalber trotzdem drin */
         cast-media-player { 
             z-index: 1; 
             --background-color: #1e1e2e; 
@@ -50,8 +49,6 @@
             --splash-display: none;
             --splash-clear-display: none;
             --watermark-display: none;
-            --metadata-title-display: none;
-            --metadata-subtitle-display: none;
         }
     </style>
 </head>
@@ -68,19 +65,27 @@
         </div>
     </div>
 
+    <!-- Die magische Eigenschaft, die dem Player sagt, er soll keine native UI nutzen -->
     <cast-media-player></cast-media-player>
 
     <script>
         const PLAYER_VERSION = "1.13";
-        document.getElementById('version-display').innerText = "Hawke297 Player | v" + PLAYER_VERSION;
+        document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
 
+        // --- DER HARTE JAVASCRIPT KILL-SWITCH FÜR DIE GOOGLE UI ---
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
+        
+        // Deaktiviert das native "Touch"- und Controller-UI von Google komplett
+        options.uiConfig = new cast.framework.ui.UiConfig();
+        options.uiConfig.touchScreenControls = false;
+
+        // --- Ende Kill-Switch Konfiguration ---
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
@@ -131,7 +136,7 @@
                 overlay.style.display = data.visible ? "block" : "none";
             }
             else if (data.type === "SHOW_PROGRESS") {
-                showCustomUI(false); // Zeigen und nach 4 Sekunden wieder verstecken
+                showCustomUI(false); 
             }
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
@@ -142,7 +147,6 @@
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
                 
-                // Titel neutralisieren
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
                 metadata.title = data.title || "Custom Stream";
                 metadata.subtitle = data.subtitle || "";
@@ -162,11 +166,10 @@
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
                             
-                            // INTELLIGENTE UI-STEUERUNG
                             if (currentState === 'PAUSED' || currentState === 'BUFFERING') {
-                                showCustomUI(true); // Dauerhaft anzeigen
+                                showCustomUI(true); 
                             } else if (currentState === 'PLAYING') {
-                                showCustomUI(false); // Nach 4 Sekunden ausblenden
+                                showCustomUI(false); 
                             }
                             
                             lastPlayerState = currentState;
@@ -200,6 +203,7 @@
             }
         });
 
+        // Übergebe die neuen Optionen an den Start!
         context.start(options);
     </script>
 </body>
