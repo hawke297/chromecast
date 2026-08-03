@@ -37,7 +37,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.16</h1>
+    <h1 id="version-display">hawke297 player | v1.17</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <div id="clock-ui">00:00</div>
     <div id="progress-ui">
@@ -50,7 +50,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.16";
+        const PLAYER_VERSION = "1.17";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -67,24 +67,6 @@
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
-
-        // --- DER ZURÜCK-TASTEN HACK ---
-        // Wir schieben eine "leere Seite" in den Verlauf, damit der erste "Zurück"-Klick uns nicht beendet.
-        history.pushState({ page: "player" }, "Player", "");
-        
-        window.addEventListener('popstate', function(event) {
-            // Android TV versucht "Zurück" zu gehen. Wir fangen es ab!
-            if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "KEY_PRESS", 
-                    key: "BrowserBack", 
-                    code: "Intercepted"
-                });
-            }
-            // SOFORT wieder einen Eintrag in den Verlauf schieben, damit wir auch beim nächsten Mal geschützt sind.
-            history.pushState({ page: "player" }, "Player", "");
-        });
-        // --- ENDE ZURÜCK-HACK ---
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
@@ -181,7 +163,14 @@
             }
         });
 
+        // --- DER HARTE ZURÜCK-BLOCKER ---
         window.addEventListener('keydown', function(event) {
+            // Wenn Zurück (BrowserBack) oder Escape (bei manchen TVs) gedrückt wird:
+            if (event.key === "BrowserBack" || event.key === "Escape") {
+                event.preventDefault(); // Stoppt das Beenden der App durch Android!
+                event.stopPropagation(); // Verhindert, dass das Signal weitergeleitet wird
+            }
+
             if (activeSenderId) {
                 try {
                     context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
