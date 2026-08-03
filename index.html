@@ -4,8 +4,19 @@
     <title>hawke297 Custom Player</title>
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
-        body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
+        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         
+        /* Das nackte Video-Tag (Full-Screen) */
+        #cast-video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain; /* Hält das korrekte Seitenverhältnis (keine Verzerrung) */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
         #custom-overlay {
@@ -40,20 +51,10 @@
             width: 0%; height: 100%; background-color: #e50914; 
             transition: width 0.5s linear;
         }
-        
-        /* Die CSS-Variablen lassen wir sicherheitshalber trotzdem drin */
-        cast-media-player { 
-            z-index: 1; 
-            --background-color: #1e1e2e; 
-            --playback-controls-display: none;
-            --splash-display: none;
-            --splash-clear-display: none;
-            --watermark-display: none;
-        }
     </style>
 </head>
 <body>
-    <h1 id="version-display">Lade Version...</h1>
+    <h1 id="version-display">hawke297 player | v1.14</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     
     <div id="clock-ui">00:00</div>
@@ -65,27 +66,25 @@
         </div>
     </div>
 
-    <!-- Die magische Eigenschaft, die dem Player sagt, er soll keine native UI nutzen -->
-    <cast-media-player></cast-media-player>
+    <!-- HIER IST DER TRICK: Ein völlig nacktes Video-Tag! -->
+    <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.13.1";
+        const PLAYER_VERSION = "1.14";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
 
-        // --- DER HARTE JAVASCRIPT KILL-SWITCH FÜR DIE GOOGLE UI ---
+        // Wir sagen dem Cast-Manager: "Nutze unser nacktes Video-Tag für das Bild!"
+        playerManager.setMediaElement(document.getElementById('cast-video'));
+
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
-        
-        // Deaktiviert das native "Touch"- und Controller-UI von Google komplett
-        options.uiConfig = new cast.framework.ui.UiConfig();
-        options.uiConfig.touchScreenControls = false;
-
-        // --- Ende Kill-Switch Konfiguration ---
+        // Verhindert, dass der Stick wegen Inaktivität zu früh abschaltet
+        options.disableIdleTimeout = true; 
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
@@ -203,7 +202,6 @@
             }
         });
 
-        // Übergebe die neuen Optionen an den Start!
         context.start(options);
     </script>
 </body>
