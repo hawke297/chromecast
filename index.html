@@ -15,38 +15,45 @@
             border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8); text-align: center;
         }
 
+        /* NEU: Uhr oben links & weiche Animation */
         #clock-ui {
-            position: absolute; top: 30px; right: 30px; 
+            position: absolute; top: 30px; left: 30px; 
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
             color: #eeeeee; padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
-            z-index: 9999; display: none; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+            z-index: 9999; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
             text-shadow: 1px 1px 2px black;
+            opacity: 0; 
+            transition: opacity 0.5s ease-in-out;
         }
 
+        /* NEU: Weiche Animation für die Fortschrittsleiste */
         #progress-ui {
             position: absolute; bottom: 40px; left: 5%; right: 5%;
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px; padding: 15px 20px; display: none; z-index: 9999;
+            border-radius: 12px; padding: 15px 20px; z-index: 9999;
             box-shadow: 0px 8px 20px rgba(0,0,0,0.6);
+            opacity: 0; 
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        /* Diese Klasse steuert das weiche Einblenden */
+        .ui-visible {
+            opacity: 1 !important;
         }
         
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        
-        /* NEU: Das Icon ist jetzt ein exakter Platzhalter für die Vektorgrafik */
         #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
-        
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
         #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; }
         #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.19</h1>
+    <h1 id="version-display">hawke297 player | v1.20</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <div id="clock-ui">00:00</div>
     <div id="progress-ui">
         <div id="progress-info-container">
-            <!-- Leer, wird vom JavaScript gefüllt -->
             <div id="status-icon"></div>
             <div id="progress-text">0:00 / 0:00</div>
         </div>
@@ -55,15 +62,13 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.19";
+        const PLAYER_VERSION = "1.20";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
-        // --- NEU: Die gestochen scharfen Vektor-Icons ---
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
         const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
 
-        // Standardmäßig Play anzeigen
         document.getElementById('status-icon').innerHTML = SVG_PLAY;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -96,14 +101,18 @@
         }
 
         function showCustomUI(keepOpen) {
-            document.getElementById('progress-ui').style.display = 'block';
-            document.getElementById('clock-ui').style.display = 'block';
+            // CSS-Klasse hinzufügen für den sanften Fade-In
+            document.getElementById('progress-ui').classList.add('ui-visible');
+            document.getElementById('clock-ui').classList.add('ui-visible');
             updateClock();
+            
             if (uiTimeout) clearTimeout(uiTimeout);
+            
             if (!keepOpen) {
                 uiTimeout = setTimeout(() => {
-                    document.getElementById('progress-ui').style.display = 'none';
-                    document.getElementById('clock-ui').style.display = 'none';
+                    // CSS-Klasse entfernen für den sanften Fade-Out
+                    document.getElementById('progress-ui').classList.remove('ui-visible');
+                    document.getElementById('clock-ui').classList.remove('ui-visible');
                 }, 4000);
             }
         }
@@ -151,13 +160,12 @@
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
                             
-                            // HIER WERDEN JETZT DIE SVGS GELADEN
                             if (currentState === 'PAUSED') {
                                 document.getElementById('status-icon').innerHTML = SVG_PAUSE;
-                                showCustomUI(true); 
+                                showCustomUI(false); // NEU: Fadet jetzt auch bei Pause nach 4 Sekunden aus!
                             } else if (currentState === 'BUFFERING') {
                                 document.getElementById('status-icon').innerHTML = SVG_BUFFER; 
-                                showCustomUI(true);
+                                showCustomUI(true); // Buffering bleibt sichtbar, bis es weitergeht
                             } else if (currentState === 'PLAYING') {
                                 document.getElementById('status-icon').innerHTML = SVG_PLAY;
                                 showCustomUI(false); 
@@ -167,12 +175,15 @@
 
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
-                        if (document.getElementById('progress-ui').style.display === 'block') {
+                        
+                        // Wir aktualisieren die UI nur, wenn sie eingeblendet ist (spart Leistung)
+                        if (document.getElementById('progress-ui').classList.contains('ui-visible')) {
                             document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                             let percent = (dur > 0) ? (cur / dur * 100) : 0;
                             document.getElementById('progress-bar-fill').style.width = percent + '%';
                             updateClock(); 
                         }
+                        
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE", currentTime: cur, duration: dur
                         });
