@@ -8,11 +8,14 @@
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
+        /* NEU: Das Overlay ist jetzt zentriert! */
         #custom-overlay {
-            position: absolute; top: 30px; right: 30px; 
-            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #eeeeee; padding: 15px 25px; font-size: 22px; z-index: 9999; display: none; 
-            border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+            position: absolute; 
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(30, 30, 40, 0.95); border: 2px solid rgba(255, 0, 0, 0.5);
+            color: #eeeeee; padding: 25px 40px; font-size: 26px; z-index: 9999; display: none; 
+            border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8);
+            text-align: center;
         }
 
         #clock-ui {
@@ -37,7 +40,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.17</h1>
+    <h1 id="version-display">hawke297 player | v1.18</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <div id="clock-ui">00:00</div>
     <div id="progress-ui">
@@ -50,7 +53,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.17";
+        const PLAYER_VERSION = "1.18";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -109,6 +112,10 @@
             else if (data.type === "TOGGLE_OVERLAY") {
                 overlay.style.display = data.visible ? "block" : "none";
             }
+            // NEU: Ein expliziter Befehl, um den Player aus Python heraus zu beenden
+            else if (data.type === "STOP_APP") {
+                context.stop(); 
+            }
             else if (data.type === "SHOW_PROGRESS") {
                 showCustomUI(false); 
             }
@@ -163,12 +170,10 @@
             }
         });
 
-        // --- DER HARTE ZURÜCK-BLOCKER ---
         window.addEventListener('keydown', function(event) {
-            // Wenn Zurück (BrowserBack) oder Escape (bei manchen TVs) gedrückt wird:
             if (event.key === "BrowserBack" || event.key === "Escape") {
-                event.preventDefault(); // Stoppt das Beenden der App durch Android!
-                event.stopPropagation(); // Verhindert, dass das Signal weitergeleitet wird
+                event.preventDefault(); 
+                event.stopPropagation(); 
             }
 
             if (activeSenderId) {
