@@ -14,11 +14,14 @@
     </style>
 </head>
 <body>
-    <h1>Version 1.8 - Metadaten Injektion</h1>
+    <h1 id="version-display">Lade Version...</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <cast-media-player></cast-media-player>
 
     <script>
+        const PLAYER_VERSION = "1.9";
+        document.getElementById('version-display').innerText = "Player Version " + PLAYER_VERSION;
+
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
@@ -34,7 +37,11 @@
             const overlay = document.getElementById('custom-overlay');
             const senderId = customEvent.senderId;
             
-            if (data.type === "SET_TEXT") {
+            if (data.type === "GET_VERSION") {
+                // TV meldet seine Version an Python zurück
+                context.sendCustomMessage(CUSTOM_CHANNEL, senderId, { type: "VERSION", version: PLAYER_VERSION });
+            }
+            else if (data.type === "SET_TEXT") {
                 overlay.innerHTML = data.text;
             } 
             else if (data.type === "TOGGLE_OVERLAY") {
@@ -47,14 +54,9 @@
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
                 
-                // --- Die harte Laufzeit überschreiben! ---
-                if (data.duration) {
-                    mediaInfo.duration = parseFloat(data.duration);
-                }
-                
-                // --- Titel & Untertitel für den Google-Player ---
+                // Titel & Untertitel für den Google-Player
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
-                metadata.title = data.title || "Unbekanntes Video";
+                metadata.title = data.title || "One Piece";
                 metadata.subtitle = data.subtitle || "";
                 mediaInfo.metadata = metadata;
                 
@@ -72,7 +74,10 @@
                             duration: playerManager.getDurationSec()
                         });
                     } catch (e) {
-                        // Fehler beim Zeitlesen ignorieren
+                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
+                            type: "ERROR",
+                            message: "Fehler beim Zeit-Auslesen: " + e.toString()
+                        });
                     }
                 }, 1000); 
             }
