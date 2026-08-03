@@ -7,8 +7,8 @@
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         #custom-overlay {
-            position: absolute; top: 20px; right: 20px; background-color: red;
-            padding: 15px; font-size: 24px; z-index: 9999; display: block; border-radius: 8px; font-weight: bold;
+            position: absolute; top: 20px; right: 20px; background-color: rgba(255, 0, 0, 0.8);
+            padding: 15px; font-size: 24px; z-index: 9999; display: none; border-radius: 8px; font-weight: bold;
         }
         cast-media-player { z-index: 1; --background-color: #1e1e2e; }
     </style>
@@ -19,7 +19,7 @@
     <cast-media-player></cast-media-player>
 
     <script>
-        const PLAYER_VERSION = "1.9";
+        const PLAYER_VERSION = "1.10";
         document.getElementById('version-display').innerText = "Player Version " + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -31,15 +31,15 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
         let timeUpdateInterval = null;
+        let activeSenderId = null; // WICHTIG: Hier merken wir uns Python!
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             const overlay = document.getElementById('custom-overlay');
-            const senderId = customEvent.senderId;
+            activeSenderId = customEvent.senderId; // Python ID speichern
             
             if (data.type === "GET_VERSION") {
-                // TV meldet seine Version an Python zurück
-                context.sendCustomMessage(CUSTOM_CHANNEL, senderId, { type: "VERSION", version: PLAYER_VERSION });
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
             else if (data.type === "SET_TEXT") {
                 overlay.innerHTML = data.text;
@@ -48,13 +48,15 @@
                 overlay.style.display = data.visible ? "block" : "none";
             }
             else if (data.type === "LOAD_VIDEO") {
+                // --- Die störende Versions-Anzeige ausblenden ---
+                document.getElementById('version-display').style.display = 'none';
+
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
                 
-                // Titel & Untertitel für den Google-Player
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
                 metadata.title = data.title || "One Piece";
                 metadata.subtitle = data.subtitle || "";
@@ -68,18 +70,33 @@
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
                     try {
-                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE",
                             currentTime: playerManager.getCurrentTimeSec(),
                             duration: playerManager.getDurationSec()
                         });
-                    } catch (e) {
-                        context.sendCustomMessage(CUSTOM_CHANNEL, senderId, {
-                            type: "ERROR",
-                            message: "Fehler beim Zeit-Auslesen: " + e.toString()
-                        });
-                    }
+                    } catch (e) {}
                 }, 1000); 
+            }
+        });
+
+        // --- NEU: Fernbedienungs-Events an Python schicken ---
+        playerManager.addEventListener(cast.framework.events.EventType.PLAYER_STATE_CHANGED, (event) => {
+            if (activeSenderId) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                    type: "REMOTE_ACTION",
+                    action: "STATE_CHANGED",
+                    value: event.value // z.B. PLAYING, PAUSED, IDLE
+                });
+            }
+        });
+
+        playerManager.addEventListener(cast.framework.events.EventType.SEEKING, (event) => {
+            if (activeSenderId) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                    type: "REMOTE_ACTION",
+                    action: "SEEKING"
+                });
             }
         });
 
