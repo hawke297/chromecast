@@ -11,8 +11,6 @@
             --ui-bg-color: rgba(30, 30, 40, 0.85);
             --ui-border: 1px solid rgba(255, 255, 255, 0.1);
             --ui-text-shadow: 1px 1px 2px black;
-            
-            /* NEU: Variablen für Box-Schatten und Full-Width */
             --ui-box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
             --ui-bottom-offset: 40px; 
             --ui-side-margin: 5%;
@@ -51,14 +49,12 @@
         
         .ui-visible { opacity: 1 !important; }
         
-        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; } /* Etwas mehr Margin wegen der Marker */
+        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
         
-        /* NEU: Overflow ist jetzt sichtbar, damit die Marker oben hinausragen können */
         #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
         
-        /* NEU: Marker sitzen jetzt exakt AUF dem Balken */
         #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 8px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 2px; }
         
@@ -66,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.001</h1>
+    <h1 id="version-display">hawke297 player | v2.0.002</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -83,7 +79,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.001";
+        const PLAYER_VERSION = "2.0.002";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -177,7 +173,6 @@
                 if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
                 if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
                 
-                // --- NEU: Logik für Hintergrund und Schatten-Bereinigung ---
                 if (data.ui_bg_visible !== undefined) {
                     if (data.ui_bg_visible) {
                         root.style.setProperty('--ui-bg-color', 'rgba(30, 30, 40, 0.85)');
@@ -188,19 +183,20 @@
                         root.style.setProperty('--ui-bg-color', 'transparent');
                         root.style.setProperty('--ui-border', 'none');
                         root.style.setProperty('--ui-text-shadow', '2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black');
-                        root.style.setProperty('--ui-box-shadow', 'none'); // Der Geister-Schatten ist Geschichte
+                        root.style.setProperty('--ui-box-shadow', 'none'); 
                     }
                 }
 
-                // --- NEU: Full-Width Logik ---
-                if (data.full_width) {
-                    root.style.setProperty('--ui-side-margin', '0px');
-                    root.style.setProperty('--ui-bottom-offset', '0px');
-                    root.style.setProperty('--ui-border-radius', '0px');
-                } else {
-                    root.style.setProperty('--ui-side-margin', '5%');
-                    root.style.setProperty('--ui-bottom-offset', (data.subtitle_offset !== undefined ? data.subtitle_offset : 40) + 'px');
-                    root.style.setProperty('--ui-border-radius', '12px');
+                if (data.full_width !== undefined) {
+                    if (data.full_width) {
+                        root.style.setProperty('--ui-side-margin', '0px');
+                        root.style.setProperty('--ui-bottom-offset', '0px');
+                        root.style.setProperty('--ui-border-radius', '0px');
+                    } else {
+                        root.style.setProperty('--ui-side-margin', '5%');
+                        root.style.setProperty('--ui-bottom-offset', (data.subtitle_offset !== undefined ? data.subtitle_offset : 40) + 'px');
+                        root.style.setProperty('--ui-border-radius', '12px');
+                    }
                 }
             }
             else if (data.type === "NOTIFY") {
@@ -277,14 +273,23 @@
                         if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
                             let container = document.getElementById('markers-container');
                             currentSkips.forEach(skip => {
-                                let startPct = (skip.start / dur) * 100;
-                                let widthPct = ((skip.end - skip.start) / dur) * 100;
-                                let marker = document.createElement('div');
-                                marker.className = 'skip-marker';
-                                marker.style.left = startPct + '%';
-                                marker.style.width = widthPct + '%';
-                                marker.style.backgroundColor = skip.color || '#ff9900'; 
-                                container.appendChild(marker);
+                                // --- FEHLERBEHEBUNG 2.0.002: CLAMPING ---
+                                // Wir begrenzen Start und Ende strikt auf maximal 100% der Gesamtlänge
+                                let safeStart = Math.min(skip.start, dur);
+                                let safeEnd = Math.min(skip.end, dur);
+                                
+                                let startPct = (safeStart / dur) * 100;
+                                let widthPct = ((safeEnd - safeStart) / dur) * 100;
+                                
+                                // Zeichne nur, wenn der Marker eine Breite > 0 hat
+                                if (widthPct > 0) {
+                                    let marker = document.createElement('div');
+                                    marker.className = 'skip-marker';
+                                    marker.style.left = startPct + '%';
+                                    marker.style.width = widthPct + '%';
+                                    marker.style.backgroundColor = skip.color || '#ff9900'; 
+                                    container.appendChild(marker);
+                                }
                             });
                             markersDrawn = true;
                         }
