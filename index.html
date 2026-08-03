@@ -5,18 +5,7 @@
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
-        
-        /* Das nackte Video-Tag (Full-Screen) */
-        #cast-video {
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain; /* Hält das korrekte Seitenverhältnis (keine Verzerrung) */
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
+        #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
         #custom-overlay {
@@ -40,56 +29,62 @@
             border-radius: 12px; padding: 15px 20px; display: none; z-index: 9999;
             box-shadow: 0px 8px 20px rgba(0,0,0,0.6);
         }
-        #progress-text {
-            color: white; font-size: 20px; font-weight: bold; margin-bottom: 10px; 
-            text-align: right; font-family: monospace; text-shadow: 1px 1px 2px black;
-        }
-        #progress-bar-bg {
-            width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden;
-        }
-        #progress-bar-fill {
-            width: 0%; height: 100%; background-color: #e50914; 
-            transition: width 0.5s linear;
-        }
+        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #status-icon { font-size: 24px; color: white; text-shadow: 1px 1px 2px black; }
+        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
+        #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; }
+        #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.14</h1>
+    <h1 id="version-display">hawke297 player | v1.16</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
-    
     <div id="clock-ui">00:00</div>
-    
     <div id="progress-ui">
-        <div id="progress-text">0:00 / 0:00</div>
-        <div id="progress-bar-bg">
-            <div id="progress-bar-fill"></div>
+        <div id="progress-info-container">
+            <div id="status-icon">▶</div>
+            <div id="progress-text">0:00 / 0:00</div>
         </div>
+        <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
     </div>
-
-    <!-- HIER IST DER TRICK: Ein völlig nacktes Video-Tag! -->
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.14";
+        const PLAYER_VERSION = "1.16";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
 
-        // Wir sagen dem Cast-Manager: "Nutze unser nacktes Video-Tag für das Bild!"
         playerManager.setMediaElement(document.getElementById('cast-video'));
-
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
-        // Verhindert, dass der Stick wegen Inaktivität zu früh abschaltet
         options.disableIdleTimeout = true; 
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
+
+        // --- DER ZURÜCK-TASTEN HACK ---
+        // Wir schieben eine "leere Seite" in den Verlauf, damit der erste "Zurück"-Klick uns nicht beendet.
+        history.pushState({ page: "player" }, "Player", "");
+        
+        window.addEventListener('popstate', function(event) {
+            // Android TV versucht "Zurück" zu gehen. Wir fangen es ab!
+            if (activeSenderId) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                    type: "KEY_PRESS", 
+                    key: "BrowserBack", 
+                    code: "Intercepted"
+                });
+            }
+            // SOFORT wieder einen Eintrag in den Verlauf schieben, damit wir auch beim nächsten Mal geschützt sind.
+            history.pushState({ page: "player" }, "Player", "");
+        });
+        // --- ENDE ZURÜCK-HACK ---
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
@@ -109,9 +104,7 @@
             document.getElementById('progress-ui').style.display = 'block';
             document.getElementById('clock-ui').style.display = 'block';
             updateClock();
-            
             if (uiTimeout) clearTimeout(uiTimeout);
-            
             if (!keepOpen) {
                 uiTimeout = setTimeout(() => {
                     document.getElementById('progress-ui').style.display = 'none';
@@ -139,21 +132,16 @@
             }
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
-
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
-                
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
-                
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
                 metadata.title = data.title || "Custom Stream";
                 metadata.subtitle = data.subtitle || "";
                 mediaInfo.metadata = metadata;
-                
                 request.media = mediaInfo;
                 request.autoplay = true;
-                
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
@@ -164,26 +152,27 @@
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
-                            
-                            if (currentState === 'PAUSED' || currentState === 'BUFFERING') {
+                            if (currentState === 'PAUSED') {
+                                document.getElementById('status-icon').innerText = "⏸";
                                 showCustomUI(true); 
+                            } else if (currentState === 'BUFFERING') {
+                                document.getElementById('status-icon').innerText = "⌛"; 
+                                showCustomUI(true);
                             } else if (currentState === 'PLAYING') {
+                                document.getElementById('status-icon').innerText = "▶";
                                 showCustomUI(false); 
                             }
-                            
                             lastPlayerState = currentState;
                         }
 
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
-
                         if (document.getElementById('progress-ui').style.display === 'block') {
                             document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                             let percent = (dur > 0) ? (cur / dur * 100) : 0;
                             document.getElementById('progress-bar-fill').style.width = percent + '%';
                             updateClock(); 
                         }
-
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE", currentTime: cur, duration: dur
                         });
