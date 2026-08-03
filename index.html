@@ -4,57 +4,69 @@
     <title>hawke297 Custom Player</title>
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
-        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
-        
-        #bg-image {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out;
+        /* --- CSS VARIABLEN ENGINE (Gesteuert durch Python) --- */
+        :root {
+            --clock-display: block;
+            --clock-color: #eeeeee;
+            --progress-color: #e50914;
+            --ui-bg-color: rgba(30, 30, 40, 0.85);
+            --ui-border: 1px solid rgba(255, 255, 255, 0.1);
+            --ui-text-shadow: 1px 1px 2px black;
+            --ui-bottom-offset: 40px; /* Für Untertitel anpassbar */
         }
 
+        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
+        #bg-image { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out; }
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
-        #custom-overlay {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background-color: rgba(30, 30, 40, 0.95); border: 2px solid rgba(255, 0, 0, 0.5);
-            color: #eeeeee; padding: 25px 40px; font-size: 26px; z-index: 9999; display: none; 
-            border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8); text-align: center;
+        /* --- DYNAMISCHER NOTIFICATION CONTAINER --- */
+        #notification-layer {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none;
         }
-
+        .notification-box {
+            position: absolute; 
+            padding: 20px 30px; font-size: 24px; border-radius: 12px; 
+            box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8);
+            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center;
+        }
+        
+        /* --- KONTROLL-LEISTEN --- */
         #clock-ui {
             position: absolute; top: 30px; left: 30px; 
-            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #eeeeee; padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
-            z-index: 9999; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
-            text-shadow: 1px 1px 2px black; opacity: 0; transition: opacity 0.5s ease-in-out;
+            background-color: var(--ui-bg-color); border: var(--ui-border);
+            color: var(--clock-color); padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
+            z-index: 9998; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+            text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
+            display: var(--clock-display);
         }
 
         #progress-ui {
-            position: absolute; bottom: 40px; left: 5%; right: 5%;
-            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px; padding: 15px 20px; z-index: 9999;
-            box-shadow: 0px 8px 20px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.5s ease-in-out;
+            position: absolute; bottom: var(--ui-bottom-offset); left: 5%; right: 5%;
+            background-color: var(--ui-bg-color); border: var(--ui-border);
+            border-radius: 12px; padding: 15px 20px; z-index: 9998;
+            box-shadow: 0px 8px 20px rgba(0,0,0,0.6); opacity: 0; transition: all 0.5s ease-in-out;
         }
         
         .ui-visible { opacity: 1 !important; }
         
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
-        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
+        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
+        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
         
-        #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; position: relative; }
+        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: hidden; position: relative; }
         #markers-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         .skip-marker { position: absolute; height: 100%; top: 0; opacity: 0.9; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; }
+        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.22</h1>
-    
+    <h1 id="version-display">hawke297 player | v2.0</h1>
     <img id="bg-image" />
     
-    <div id="custom-overlay">Warte auf Signal...</div>
+    <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
+    
     <div id="progress-ui">
         <div id="progress-info-container">
             <div id="status-icon"></div>
@@ -65,10 +77,11 @@
             <div id="progress-bar-fill"></div>
         </div>
     </div>
+    
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.22";
+        const PLAYER_VERSION = "2.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -91,9 +104,42 @@
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
-        
         let currentSkips = [];
         let markersDrawn = false;
+        
+        // --- NOTIFICATION ENGINE ---
+        function showNotification(text, config) {
+            const layer = document.getElementById('notification-layer');
+            const notif = document.createElement('div');
+            notif.className = 'notification-box';
+            notif.innerHTML = text;
+            
+            // Styles anwenden
+            notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
+            notif.style.color = config.text_color || "#ffffff";
+            if (config.border) notif.style.border = config.border;
+            else notif.style.border = "none";
+            
+            // Positionierung
+            if (config.position === "center") {
+                notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)";
+            } else if (config.position === "top-right") {
+                notif.style.top = "30px"; notif.style.right = "30px";
+            } else if (config.position === "bottom") {
+                notif.style.bottom = "150px"; notif.style.left = "50%"; notif.style.transform = "translateX(-50%)";
+            }
+
+            layer.appendChild(notif);
+            
+            // Einblenden
+            setTimeout(() => notif.style.opacity = "1", 50);
+            
+            // Ausblenden und löschen
+            setTimeout(() => {
+                notif.style.opacity = "0";
+                setTimeout(() => notif.remove(), 300);
+            }, config.duration || 4000);
+        }
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
@@ -124,17 +170,41 @@
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
-            const overlay = document.getElementById('custom-overlay');
             activeSenderId = customEvent.senderId; 
             
             if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
-            else if (data.type === "SET_TEXT") {
-                overlay.innerHTML = data.text;
-            } 
-            else if (data.type === "TOGGLE_OVERLAY") {
-                overlay.style.display = data.visible ? "block" : "none";
+            // --- NEU: DYNAMISCHE KONFIGURATION ---
+            else if (data.type === "SET_CONFIG") {
+                const root = document.documentElement;
+                if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
+                if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
+                if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
+                if (data.subtitle_offset !== undefined) root.style.setProperty('--ui-bottom-offset', data.subtitle_offset + 'px');
+                
+                if (data.ui_bg_visible !== undefined) {
+                    if (data.ui_bg_visible) {
+                        root.style.setProperty('--ui-bg-color', 'rgba(30, 30, 40, 0.85)');
+                        root.style.setProperty('--ui-border', '1px solid rgba(255, 255, 255, 0.1)');
+                        root.style.setProperty('--ui-text-shadow', '1px 1px 2px black');
+                    } else {
+                        root.style.setProperty('--ui-bg-color', 'transparent');
+                        root.style.setProperty('--ui-border', 'none');
+                        // Extrem starker Schatten für Lesbarkeit ohne Box
+                        root.style.setProperty('--ui-text-shadow', '2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black');
+                    }
+                }
+            }
+            // --- NEU: BENACHRICHTIGUNGEN ---
+            else if (data.type === "NOTIFY") {
+                showNotification(data.text, data.config);
+            }
+            // --- NEU: FERNSTEUERUNG ---
+            else if (data.type === "CONTROL") {
+                if (data.action === "PLAY") playerManager.play();
+                else if (data.action === "PAUSE") playerManager.pause();
+                else if (data.action === "SEEK") playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
             }
             else if (data.type === "STOP_APP") {
                 context.stop(); 
@@ -149,8 +219,6 @@
                 if (data.bg_image) {
                     bgImage.src = data.bg_image;
                     bgImage.style.opacity = "0.2"; 
-                } else {
-                    bgImage.style.opacity = "0";
                 }
                 
                 currentSkips = data.skips || [];
@@ -173,6 +241,14 @@
                 timeUpdateInterval = setInterval(() => {
                     try {
                         let currentState = playerManager.getPlayerState();
+                        
+                        // Hintergrundbild Logik: Nur bei IDLE sichtbar
+                        if (currentState === 'IDLE') {
+                            document.getElementById('bg-image').style.opacity = "0.5";
+                        } else {
+                            document.getElementById('bg-image').style.opacity = "0.15";
+                        }
+
                         if (currentState !== lastPlayerState) {
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
@@ -199,7 +275,6 @@
                             currentSkips.forEach(skip => {
                                 let startPct = (skip.start / dur) * 100;
                                 let widthPct = ((skip.end - skip.start) / dur) * 100;
-                                
                                 let marker = document.createElement('div');
                                 marker.className = 'skip-marker';
                                 marker.style.left = startPct + '%';
