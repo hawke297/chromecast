@@ -8,14 +8,11 @@
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
-        /* NEU: Das Overlay ist jetzt zentriert! */
         #custom-overlay {
-            position: absolute; 
-            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background-color: rgba(30, 30, 40, 0.95); border: 2px solid rgba(255, 0, 0, 0.5);
             color: #eeeeee; padding: 25px 40px; font-size: 26px; z-index: 9999; display: none; 
-            border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8);
-            text-align: center;
+            border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8); text-align: center;
         }
 
         #clock-ui {
@@ -32,20 +29,25 @@
             border-radius: 12px; padding: 15px 20px; display: none; z-index: 9999;
             box-shadow: 0px 8px 20px rgba(0,0,0,0.6);
         }
+        
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        #status-icon { font-size: 24px; color: white; text-shadow: 1px 1px 2px black; }
+        
+        /* NEU: Das Icon ist jetzt ein exakter Platzhalter für die Vektorgrafik */
+        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+        
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
         #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; }
         #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.18</h1>
+    <h1 id="version-display">hawke297 player | v1.19</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
     <div id="clock-ui">00:00</div>
     <div id="progress-ui">
         <div id="progress-info-container">
-            <div id="status-icon">▶</div>
+            <!-- Leer, wird vom JavaScript gefüllt -->
+            <div id="status-icon"></div>
             <div id="progress-text">0:00 / 0:00</div>
         </div>
         <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
@@ -53,8 +55,16 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.18";
+        const PLAYER_VERSION = "1.19";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
+
+        // --- NEU: Die gestochen scharfen Vektor-Icons ---
+        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
+        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
+
+        // Standardmäßig Play anzeigen
+        document.getElementById('status-icon').innerHTML = SVG_PLAY;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
@@ -112,7 +122,6 @@
             else if (data.type === "TOGGLE_OVERLAY") {
                 overlay.style.display = data.visible ? "block" : "none";
             }
-            // NEU: Ein expliziter Befehl, um den Player aus Python heraus zu beenden
             else if (data.type === "STOP_APP") {
                 context.stop(); 
             }
@@ -141,14 +150,16 @@
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
+                            
+                            // HIER WERDEN JETZT DIE SVGS GELADEN
                             if (currentState === 'PAUSED') {
-                                document.getElementById('status-icon').innerText = "⏸";
+                                document.getElementById('status-icon').innerHTML = SVG_PAUSE;
                                 showCustomUI(true); 
                             } else if (currentState === 'BUFFERING') {
-                                document.getElementById('status-icon').innerText = "⌛"; 
+                                document.getElementById('status-icon').innerHTML = SVG_BUFFER; 
                                 showCustomUI(true);
                             } else if (currentState === 'PLAYING') {
-                                document.getElementById('status-icon').innerText = "▶";
+                                document.getElementById('status-icon').innerHTML = SVG_PLAY;
                                 showCustomUI(false); 
                             }
                             lastPlayerState = currentState;
