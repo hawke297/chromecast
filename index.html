@@ -7,20 +7,40 @@
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
-        /* Das neue, elegante Overlay */
+        /* Das generische Overlay (für Sleep-Timer etc.) */
         #custom-overlay {
-            position: absolute; 
-            top: 30px; 
-            right: 30px; 
-            background-color: rgba(30, 30, 40, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #eeeeee;
-            padding: 15px 25px; 
-            font-size: 22px; 
-            z-index: 9999; 
-            display: none; 
-            border-radius: 12px; 
-            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+            position: absolute; top: 30px; right: 30px; 
+            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #eeeeee; padding: 15px 25px; font-size: 22px; z-index: 9999; display: none; 
+            border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        /* NEU: Die Uhrzeit oben rechts */
+        #clock-ui {
+            position: absolute; top: 30px; right: 30px; 
+            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #eeeeee; padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
+            z-index: 9999; display: none; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
+            text-shadow: 1px 1px 2px black;
+        }
+
+        /* Das Design für den Custom-Fortschrittsbalken */
+        #progress-ui {
+            position: absolute; bottom: 40px; left: 5%; right: 5%;
+            background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; padding: 15px 20px; display: none; z-index: 9999;
+            box-shadow: 0px 8px 20px rgba(0,0,0,0.6);
+        }
+        #progress-text {
+            color: white; font-size: 20px; font-weight: bold; margin-bottom: 10px; 
+            text-align: right; font-family: monospace; text-shadow: 1px 1px 2px black;
+        }
+        #progress-bar-bg {
+            width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden;
+        }
+        #progress-bar-fill {
+            width: 0%; height: 100%; background-color: #e50914; 
+            transition: width 0.5s linear;
         }
         
         cast-media-player { z-index: 1; --background-color: #1e1e2e; }
@@ -29,10 +49,21 @@
 <body>
     <h1 id="version-display">Lade Version...</h1>
     <div id="custom-overlay">Warte auf Signal...</div>
+    
+    <!-- NEU: Das HTML für die Uhr -->
+    <div id="clock-ui">00:00</div>
+    
+    <div id="progress-ui">
+        <div id="progress-text">0:00 / 0:00</div>
+        <div id="progress-bar-bg">
+            <div id="progress-bar-fill"></div>
+        </div>
+    </div>
+
     <cast-media-player></cast-media-player>
 
     <script>
-        const PLAYER_VERSION = "1.11";
+        const PLAYER_VERSION = "1.12";
         document.getElementById('version-display').innerText = "Player Version " + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -46,6 +77,22 @@
         let timeUpdateInterval = null;
         let activeSenderId = null; 
         let lastPlayerState = null;
+        let uiTimeout = null; 
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return "0:00";
+            let m = Math.floor(seconds / 60);
+            let s = Math.floor(seconds % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        // Hilfsfunktion: Aktuelle reale Uhrzeit holen
+        function updateClock() {
+            let now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+            document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        }
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
@@ -60,6 +107,18 @@
             } 
             else if (data.type === "TOGGLE_OVERLAY") {
                 overlay.style.display = data.visible ? "block" : "none";
+            }
+            else if (data.type === "SHOW_PROGRESS") {
+                // Beide UI-Elemente einblenden
+                document.getElementById('progress-ui').style.display = 'block';
+                document.getElementById('clock-ui').style.display = 'block';
+                updateClock(); // Einmalig Uhrzeit sofort setzen
+                
+                if (uiTimeout) clearTimeout(uiTimeout);
+                uiTimeout = setTimeout(() => {
+                    document.getElementById('progress-ui').style.display = 'none';
+                    document.getElementById('clock-ui').style.display = 'none';
+                }, 5000);
             }
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
@@ -86,31 +145,35 @@
                         let currentState = playerManager.getPlayerState();
                         if (currentState !== lastPlayerState) {
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                                type: "REMOTE_ACTION",
-                                action: "STATE_CHANGED",
-                                value: currentState
+                                type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
                             lastPlayerState = currentState;
                         }
 
+                        let cur = playerManager.getCurrentTimeSec();
+                        let dur = playerManager.getDurationSec();
+
+                        // UI aktualisieren, falls sichtbar
+                        if (document.getElementById('progress-ui').style.display === 'block') {
+                            document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
+                            let percent = (dur > 0) ? (cur / dur * 100) : 0;
+                            document.getElementById('progress-bar-fill').style.width = percent + '%';
+                            updateClock(); // Uhrzeit sekündlich aktualisieren
+                        }
+
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                            type: "TIME_UPDATE",
-                            currentTime: playerManager.getCurrentTimeSec(),
-                            duration: playerManager.getDurationSec()
+                            type: "TIME_UPDATE", currentTime: cur, duration: dur
                         });
                     } catch (e) {}
                 }, 1000); 
             }
         });
 
-        // --- NEU: Der sichere Tastatur-Zuhörer auf Fensterebene ---
         window.addEventListener('keydown', function(event) {
             if (activeSenderId) {
                 try {
                     context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                        type: "KEY_PRESS",
-                        key: event.key,
-                        code: event.code
+                        type: "KEY_PRESS", key: event.key, code: event.code
                     });
                 } catch (e) {}
             }
