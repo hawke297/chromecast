@@ -19,7 +19,7 @@
     <cast-media-player></cast-media-player>
 
     <script>
-        const PLAYER_VERSION = "1.10";
+        const PLAYER_VERSION = "1.11";
         document.getElementById('version-display').innerText = "Player Version " + PLAYER_VERSION;
 
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -31,12 +31,13 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
 
         let timeUpdateInterval = null;
-        let activeSenderId = null; // WICHTIG: Hier merken wir uns Python!
+        let activeSenderId = null; 
+        let lastPlayerState = null; // Speichert den letzten Zustand (z.B. PLAYING oder PAUSED)
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             const overlay = document.getElementById('custom-overlay');
-            activeSenderId = customEvent.senderId; // Python ID speichern
+            activeSenderId = customEvent.senderId; 
             
             if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
@@ -48,7 +49,6 @@
                 overlay.style.display = data.visible ? "block" : "none";
             }
             else if (data.type === "LOAD_VIDEO") {
-                // --- Die störende Versions-Anzeige ausblenden ---
                 document.getElementById('version-display').style.display = 'none';
 
                 let request = new cast.framework.messages.LoadRequestData();
@@ -68,8 +68,22 @@
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
+                
+                // --- Unser sicherer Absturz-freier Timer ---
                 timeUpdateInterval = setInterval(() => {
                     try {
+                        // 1. Prüfen, ob eine Taste gedrückt wurde (Status-Änderung)
+                        let currentState = playerManager.getPlayerState();
+                        if (currentState !== lastPlayerState) {
+                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                                type: "REMOTE_ACTION",
+                                action: "STATE_CHANGED",
+                                value: currentState
+                            });
+                            lastPlayerState = currentState;
+                        }
+
+                        // 2. Normale Zeit senden
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE",
                             currentTime: playerManager.getCurrentTimeSec(),
@@ -77,26 +91,6 @@
                         });
                     } catch (e) {}
                 }, 1000); 
-            }
-        });
-
-        // --- NEU: Fernbedienungs-Events an Python schicken ---
-        playerManager.addEventListener(cast.framework.events.EventType.PLAYER_STATE_CHANGED, (event) => {
-            if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "REMOTE_ACTION",
-                    action: "STATE_CHANGED",
-                    value: event.value // z.B. PLAYING, PAUSED, IDLE
-                });
-            }
-        });
-
-        playerManager.addEventListener(cast.framework.events.EventType.SEEKING, (event) => {
-            if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "REMOTE_ACTION",
-                    action: "SEEKING"
-                });
             }
         });
 
