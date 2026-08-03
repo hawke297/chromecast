@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.005</h1>
+    <h1 id="version-display">hawke297 player | v2.0.006</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -79,7 +79,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.005";
+        const PLAYER_VERSION = "2.0.006";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -104,6 +104,29 @@
         let uiTimeout = null; 
         let currentSkips = [];
         let markersDrawn = false;
+        
+        // --- NEU: BILD-FEHLER ÜBERWACHUNG ---
+        const bgImageElement = document.getElementById('bg-image');
+        
+        bgImageElement.onerror = function() {
+            if (activeSenderId) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                    type: "ERROR",
+                    source: "IMAGE_LOAD",
+                    message: "TV konnte Bild nicht laden. Möglicherweise CORS/Mixed Content Block! URL: " + bgImageElement.src
+                });
+            }
+        };
+
+        bgImageElement.onload = function() {
+            if (activeSenderId && bgImageElement.src) {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                    type: "DEBUG",
+                    message: "Bild erfolgreich auf dem TV geladen!"
+                });
+            }
+        };
+        // -------------------------------------
         
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
@@ -201,20 +224,17 @@
                     }
                 }
             }
-            // --- NEU: UNABHÄNGIGER BILD-BEFEHL ---
             else if (data.type === "SET_BACKGROUND") {
-                let bgImage = document.getElementById('bg-image');
                 if (data.url) {
-                    bgImage.src = data.url;
-                    // Wir checken den aktuellen Player-Status. Wenn kein Video läuft, machen wir es hell.
+                    bgImageElement.src = data.url;
                     let currentState = playerManager.getPlayerState();
                     if (currentState === 'IDLE' || currentState === 'BUFFERING' || !currentState) {
-                        bgImage.style.opacity = "1.0";
+                        bgImageElement.style.opacity = "1.0";
                     } else {
-                        bgImage.style.opacity = "0.15";
+                        bgImageElement.style.opacity = "0.15";
                     }
                 } else {
-                    bgImage.style.opacity = "0";
+                    bgImageElement.style.opacity = "0";
                 }
             }
             else if (data.type === "NOTIFY") {
@@ -234,9 +254,8 @@
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
                 
-                let bgImage = document.getElementById('bg-image');
                 if (data.bg_image) {
-                    bgImage.src = data.bg_image;
+                    bgImageElement.src = data.bg_image;
                 }
                 
                 currentSkips = data.skips || [];
@@ -261,9 +280,9 @@
                         let currentState = playerManager.getPlayerState();
                         
                         if (currentState === 'IDLE' || currentState === 'BUFFERING') {
-                            document.getElementById('bg-image').style.opacity = "1.0";
+                            bgImageElement.style.opacity = "1.0";
                         } else {
-                            document.getElementById('bg-image').style.opacity = "0.15";
+                            bgImageElement.style.opacity = "0.15";
                         }
 
                         if (currentState !== lastPlayerState) {
