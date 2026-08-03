@@ -8,13 +8,13 @@
             --clock-display: block;
             --clock-color: #eeeeee;
             --progress-color: #e50914;
-            --ui-bg-color: rgba(30, 30, 40, 0.85);
-            --ui-border: 1px solid rgba(255, 255, 255, 0.1);
-            --ui-text-shadow: 1px 1px 2px black;
-            --ui-box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
-            --ui-bottom-offset: 40px; 
-            --ui-side-margin: 5%;
-            --ui-border-radius: 12px;
+            --ui-bg-color: transparent; /* Neuer Standard */
+            --ui-border: none; /* Neuer Standard */
+            --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; /* Neuer Standard */
+            --ui-box-shadow: none; /* Neuer Standard */
+            --ui-bottom-offset: 0px; /* Neuer Standard (Full Width) */
+            --ui-side-margin: 0px; /* Neuer Standard (Full Width) */
+            --ui-border-radius: 0px; /* Neuer Standard (Full Width) */
         }
 
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.002</h1>
+    <h1 id="version-display">hawke297 player | v2.0.003</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -79,7 +79,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.002";
+        const PLAYER_VERSION = "2.0.003";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -219,7 +219,7 @@
                 let bgImage = document.getElementById('bg-image');
                 if (data.bg_image) {
                     bgImage.src = data.bg_image;
-                    bgImage.style.opacity = "0.2"; 
+                    // Standardmäßig nicht sichtbar, wird vom Interval gesteuert
                 }
                 
                 currentSkips = data.skips || [];
@@ -243,10 +243,11 @@
                     try {
                         let currentState = playerManager.getPlayerState();
                         
-                        if (currentState === 'IDLE') {
-                            document.getElementById('bg-image').style.opacity = "0.5";
+                        // --- NEU: HINTERGRUNDBILD LOGIK ---
+                        if (currentState === 'IDLE' || currentState === 'BUFFERING') {
+                            document.getElementById('bg-image').style.opacity = "1.0"; // Voll sichtbar wenn nichts läuft!
                         } else {
-                            document.getElementById('bg-image').style.opacity = "0.15";
+                            document.getElementById('bg-image').style.opacity = "0.15"; // Dunkel im Hintergrund beim Schauen
                         }
 
                         if (currentState !== lastPlayerState) {
@@ -273,15 +274,12 @@
                         if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
                             let container = document.getElementById('markers-container');
                             currentSkips.forEach(skip => {
-                                // --- FEHLERBEHEBUNG 2.0.002: CLAMPING ---
-                                // Wir begrenzen Start und Ende strikt auf maximal 100% der Gesamtlänge
                                 let safeStart = Math.min(skip.start, dur);
                                 let safeEnd = Math.min(skip.end, dur);
                                 
                                 let startPct = (safeStart / dur) * 100;
                                 let widthPct = ((safeEnd - safeStart) / dur) * 100;
                                 
-                                // Zeichne nur, wenn der Marker eine Breite > 0 hat
                                 if (widthPct > 0) {
                                     let marker = document.createElement('div');
                                     marker.className = 'skip-marker';
