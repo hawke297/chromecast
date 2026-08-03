@@ -6,10 +6,23 @@
     <style>
         body { background-color: #1e1e2e; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
+        
+        /* Das neue, elegante Overlay */
         #custom-overlay {
-            position: absolute; top: 20px; right: 20px; background-color: rgba(255, 0, 0, 0.8);
-            padding: 15px; font-size: 24px; z-index: 9999; display: none; border-radius: 8px; font-weight: bold;
+            position: absolute; 
+            top: 30px; 
+            right: 30px; 
+            background-color: rgba(30, 30, 40, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #eeeeee;
+            padding: 15px 25px; 
+            font-size: 22px; 
+            z-index: 9999; 
+            display: none; 
+            border-radius: 12px; 
+            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
         }
+        
         cast-media-player { z-index: 1; --background-color: #1e1e2e; }
     </style>
 </head>
@@ -32,7 +45,7 @@
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
-        let lastPlayerState = null; // Speichert den letzten Zustand (z.B. PLAYING oder PAUSED)
+        let lastPlayerState = null;
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
@@ -68,11 +81,8 @@
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
-                
-                // --- Unser sicherer Absturz-freier Timer ---
                 timeUpdateInterval = setInterval(() => {
                     try {
-                        // 1. Prüfen, ob eine Taste gedrückt wurde (Status-Änderung)
                         let currentState = playerManager.getPlayerState();
                         if (currentState !== lastPlayerState) {
                             context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
@@ -83,7 +93,6 @@
                             lastPlayerState = currentState;
                         }
 
-                        // 2. Normale Zeit senden
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE",
                             currentTime: playerManager.getCurrentTimeSec(),
@@ -91,6 +100,19 @@
                         });
                     } catch (e) {}
                 }, 1000); 
+            }
+        });
+
+        // --- NEU: Der sichere Tastatur-Zuhörer auf Fensterebene ---
+        window.addEventListener('keydown', function(event) {
+            if (activeSenderId) {
+                try {
+                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                        type: "KEY_PRESS",
+                        key: event.key,
+                        code: event.code
+                    });
+                } catch (e) {}
             }
         });
 
