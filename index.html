@@ -5,6 +5,13 @@
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
+        
+        /* NEU: Das Hintergrundbild (randlos) */
+        #bg-image {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out;
+        }
+
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
@@ -15,41 +22,40 @@
             border-radius: 12px; box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.8); text-align: center;
         }
 
-        /* NEU: Uhr oben links & weiche Animation */
         #clock-ui {
             position: absolute; top: 30px; left: 30px; 
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
             color: #eeeeee; padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
             z-index: 9999; border-radius: 12px; box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
-            text-shadow: 1px 1px 2px black;
-            opacity: 0; 
-            transition: opacity 0.5s ease-in-out;
+            text-shadow: 1px 1px 2px black; opacity: 0; transition: opacity 0.5s ease-in-out;
         }
 
-        /* NEU: Weiche Animation für die Fortschrittsleiste */
         #progress-ui {
             position: absolute; bottom: 40px; left: 5%; right: 5%;
             background-color: rgba(30, 30, 40, 0.85); border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px; padding: 15px 20px; z-index: 9999;
-            box-shadow: 0px 8px 20px rgba(0,0,0,0.6);
-            opacity: 0; 
-            transition: opacity 0.5s ease-in-out;
+            box-shadow: 0px 8px 20px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.5s ease-in-out;
         }
         
-        /* Diese Klasse steuert das weiche Einblenden */
-        .ui-visible {
-            opacity: 1 !important;
-        }
+        .ui-visible { opacity: 1 !important; }
         
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
-        #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; }
+        
+        /* NEU: Die Bar wurde umgebaut, um die Marker aufzunehmen */
+        #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; position: relative; }
+        #markers-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .skip-marker { position: absolute; height: 100%; top: 0; opacity: 0.9; }
+        #progress-bar-fill { width: 0%; height: 100%; background-color: #e50914; transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.20</h1>
+    <h1 id="version-display">hawke297 player | v1.21</h1>
+    
+    <!-- Das neue Hintergrundbild -->
+    <img id="bg-image" />
+    
     <div id="custom-overlay">Warte auf Signal...</div>
     <div id="clock-ui">00:00</div>
     <div id="progress-ui">
@@ -57,12 +63,15 @@
             <div id="status-icon"></div>
             <div id="progress-text">0:00 / 0:00</div>
         </div>
-        <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        <div id="progress-bar-bg">
+            <div id="markers-container"></div>
+            <div id="progress-bar-fill"></div>
+        </div>
     </div>
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.20";
+        const PLAYER_VERSION = "1.21";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -85,6 +94,10 @@
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
+        
+        // NEU: Globale Variablen für AniSkip
+        let currentSkips = [];
+        let markersDrawn = false;
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
@@ -101,16 +114,12 @@
         }
 
         function showCustomUI(keepOpen) {
-            // CSS-Klasse hinzufügen für den sanften Fade-In
             document.getElementById('progress-ui').classList.add('ui-visible');
             document.getElementById('clock-ui').classList.add('ui-visible');
             updateClock();
-            
             if (uiTimeout) clearTimeout(uiTimeout);
-            
             if (!keepOpen) {
                 uiTimeout = setTimeout(() => {
-                    // CSS-Klasse entfernen für den sanften Fade-Out
                     document.getElementById('progress-ui').classList.remove('ui-visible');
                     document.getElementById('clock-ui').classList.remove('ui-visible');
                 }, 4000);
@@ -139,6 +148,21 @@
             }
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
+                
+                // NEU: Hintergrundbild setzen
+                let bgImage = document.getElementById('bg-image');
+                if (data.bg_image) {
+                    bgImage.src = data.bg_image;
+                    bgImage.style.opacity = "0.2"; // Leicht abgedunkelt im Hintergrund
+                } else {
+                    bgImage.style.opacity = "0";
+                }
+                
+                // NEU: AniSkip Daten zwischenspeichern
+                currentSkips = data.skips || [];
+                markersDrawn = false;
+                document.getElementById('markers-container').innerHTML = '';
+
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 mediaInfo.contentId = data.url;
@@ -162,10 +186,10 @@
                             
                             if (currentState === 'PAUSED') {
                                 document.getElementById('status-icon').innerHTML = SVG_PAUSE;
-                                showCustomUI(false); // NEU: Fadet jetzt auch bei Pause nach 4 Sekunden aus!
+                                showCustomUI(false); 
                             } else if (currentState === 'BUFFERING') {
                                 document.getElementById('status-icon').innerHTML = SVG_BUFFER; 
-                                showCustomUI(true); // Buffering bleibt sichtbar, bis es weitergeht
+                                showCustomUI(true); 
                             } else if (currentState === 'PLAYING') {
                                 document.getElementById('status-icon').innerHTML = SVG_PLAY;
                                 showCustomUI(false); 
@@ -176,7 +200,23 @@
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
                         
-                        // Wir aktualisieren die UI nur, wenn sie eingeblendet ist (spart Leistung)
+                        // NEU: Marker zeichnen, sobald die Gesamtlänge (dur) bekannt ist!
+                        if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
+                            let container = document.getElementById('markers-container');
+                            currentSkips.forEach(skip => {
+                                let startPct = (skip.start / dur) * 100;
+                                let widthPct = ((skip.end - skip.start) / dur) * 100;
+                                
+                                let marker = document.createElement('div');
+                                marker.className = 'skip-marker';
+                                marker.style.left = startPct + '%';
+                                marker.style.width = widthPct + '%';
+                                marker.style.backgroundColor = skip.color || '#ff9900'; // Standard: Orange
+                                container.appendChild(marker);
+                            });
+                            markersDrawn = true;
+                        }
+                        
                         if (document.getElementById('progress-ui').classList.contains('ui-visible')) {
                             document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                             let percent = (dur > 0) ? (cur / dur * 100) : 0;
@@ -197,7 +237,6 @@
                 event.preventDefault(); 
                 event.stopPropagation(); 
             }
-
             if (activeSenderId) {
                 try {
                     context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
