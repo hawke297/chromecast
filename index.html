@@ -6,7 +6,6 @@
     <style>
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
         
-        /* NEU: Das Hintergrundbild (randlos) */
         #bg-image {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out;
@@ -43,7 +42,6 @@
         #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 1px 1px 2px black; }
         
-        /* NEU: Die Bar wurde umgebaut, um die Marker aufzunehmen */
         #progress-bar-bg { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; position: relative; }
         #markers-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         .skip-marker { position: absolute; height: 100%; top: 0; opacity: 0.9; }
@@ -51,9 +49,8 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v1.21</h1>
+    <h1 id="version-display">hawke297 player | v1.22</h1>
     
-    <!-- Das neue Hintergrundbild -->
     <img id="bg-image" />
     
     <div id="custom-overlay">Warte auf Signal...</div>
@@ -71,7 +68,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "1.21";
+        const PLAYER_VERSION = "1.22";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -95,7 +92,6 @@
         let lastPlayerState = null;
         let uiTimeout = null; 
         
-        // NEU: Globale Variablen für AniSkip
         let currentSkips = [];
         let markersDrawn = false;
 
@@ -149,16 +145,14 @@
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
                 
-                // NEU: Hintergrundbild setzen
                 let bgImage = document.getElementById('bg-image');
                 if (data.bg_image) {
                     bgImage.src = data.bg_image;
-                    bgImage.style.opacity = "0.2"; // Leicht abgedunkelt im Hintergrund
+                    bgImage.style.opacity = "0.2"; 
                 } else {
                     bgImage.style.opacity = "0";
                 }
                 
-                // NEU: AniSkip Daten zwischenspeichern
                 currentSkips = data.skips || [];
                 markersDrawn = false;
                 document.getElementById('markers-container').innerHTML = '';
@@ -200,7 +194,6 @@
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
                         
-                        // NEU: Marker zeichnen, sobald die Gesamtlänge (dur) bekannt ist!
                         if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
                             let container = document.getElementById('markers-container');
                             currentSkips.forEach(skip => {
@@ -211,7 +204,7 @@
                                 marker.className = 'skip-marker';
                                 marker.style.left = startPct + '%';
                                 marker.style.width = widthPct + '%';
-                                marker.style.backgroundColor = skip.color || '#ff9900'; // Standard: Orange
+                                marker.style.backgroundColor = skip.color || '#ff9900'; 
                                 container.appendChild(marker);
                             });
                             markersDrawn = true;
