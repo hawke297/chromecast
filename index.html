@@ -55,14 +55,15 @@
         
         #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
         
-        #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 8px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
-        .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 2px; }
+        /* FEIN-TUNING: Container Höhe auf 2px (ein Viertel von 8px) reduziert */
+        #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
+        .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
         
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.008</h1>
+    <h1 id="version-display">hawke297 player | v2.0.009</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -79,14 +80,12 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.008";
+        const PLAYER_VERSION = "2.0.009";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
         const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
-        
-        // NEU: Rotes Ausrufezeichen für Player-Fehler
         const SVG_ERROR = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#ff3333"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
 
         document.getElementById('status-icon').innerHTML = SVG_PLAY;
@@ -129,11 +128,8 @@
             }
         };
         
-        // --- NEU: DER PLAYER-FEHLER WÄCHTER ---
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
             console.error('Player error:', event);
-            
-            // Sende Fehler an die Python App
             if (activeSenderId) {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                     type: "ERROR",
@@ -142,21 +138,18 @@
                 });
             }
             
-            // Zeige massives Overlay auf dem TV
             showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
                 position: "center",
-                bg_color: "rgba(150, 0, 0, 0.95)", // Dunkelrot
+                bg_color: "rgba(150, 0, 0, 0.95)",
                 border: "2px solid white",
                 text_color: "white",
                 duration: 8000
             });
             
-            // Breche die Lade-Schleife optisch ab
             document.getElementById('status-icon').innerHTML = SVG_ERROR;
-            bgImageElement.style.opacity = "1.0"; // Hintergrundbild wieder 100% zeigen
-            showCustomUI(true); // UI eingeblendet lassen, damit man den Fehler-Status sieht
+            bgImageElement.style.opacity = "1.0"; 
+            showCustomUI(true); 
         });
-        // ---------------------------------------
         
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
@@ -309,7 +302,6 @@
                     try {
                         let currentState = playerManager.getPlayerState();
                         
-                        // IDLE handling for background
                         if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
                             bgImageElement.style.opacity = "1.0";
                         } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
@@ -321,7 +313,6 @@
                                 type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
                             });
                             
-                            // Ignoriere den Buffer-Status für das UI, wenn wir in einen Fehler gelaufen sind
                             if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
                                 if (currentState === 'PAUSED') {
                                     document.getElementById('status-icon').innerHTML = SVG_PAUSE;
@@ -368,6 +359,7 @@
                             updateClock(); 
                         }
                         
+                        // Das ist der wichtigste Befehl für deine Haupt-App!
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE", currentTime: cur, duration: dur
                         });
