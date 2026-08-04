@@ -15,8 +15,6 @@
             --ui-bottom-offset: 0px; 
             --ui-side-margin: 0px; 
             --ui-border-radius: 0px; 
-            
-            /* NEU: Variablen für den Titel */
             --title-display: block;
         }
 
@@ -40,10 +38,9 @@
             display: var(--clock-display);
         }
 
-        /* NEU: Styling für den Folgentitel */
         #title-ui {
             position: absolute; 
-            top: 30px; left: 50%; transform: translateX(-50%); /* Standard: Oben Zentriert */
+            top: 30px; left: 50%; transform: translateX(-50%); 
             background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
             color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
             z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
@@ -75,11 +72,11 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.012</h1>
+    <h1 id="version-display">hawke297 player | v2.0.013</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
-    <div id="title-ui"></div> <!-- NEU -->
+    <div id="title-ui"></div>
     <div id="progress-ui">
         <div id="progress-info-container">
             <div id="status-icon"></div>
@@ -93,7 +90,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.012";
+        const PLAYER_VERSION = "2.0.013";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -177,14 +174,14 @@
         function showCustomUI(keepOpen) {
             document.getElementById('progress-ui').classList.add('ui-visible');
             document.getElementById('clock-ui').classList.add('ui-visible');
-            document.getElementById('title-ui').classList.add('ui-visible'); // NEU: Titel mit einblenden
+            document.getElementById('title-ui').classList.add('ui-visible');
             updateClock();
             if (uiTimeout) clearTimeout(uiTimeout);
             if (!keepOpen) {
                 uiTimeout = setTimeout(() => {
                     document.getElementById('progress-ui').classList.remove('ui-visible');
                     document.getElementById('clock-ui').classList.remove('ui-visible');
-                    document.getElementById('title-ui').classList.remove('ui-visible'); // NEU: Titel mit ausblenden
+                    document.getElementById('title-ui').classList.remove('ui-visible');
                 }, 4000);
             }
         }
@@ -202,7 +199,6 @@
                 if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
                 if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
                 
-                // NEU: Titel Konfiguration
                 if (data.title_visible !== undefined) {
                     root.style.setProperty('--title-display', data.title_visible ? 'block' : 'none');
                 }
@@ -210,7 +206,7 @@
                     const titleUi = document.getElementById('title-ui');
                     if (data.title_position === 'bottom') {
                         titleUi.style.top = 'auto';
-                        titleUi.style.bottom = '120px'; // Schwebt leicht über der Fortschrittsleiste
+                        titleUi.style.bottom = '120px';
                     } else {
                         titleUi.style.bottom = 'auto';
                         titleUi.style.top = '30px';
@@ -274,7 +270,6 @@
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
                 
-                // NEU: Titel setzen, falls vorhanden
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
                 }
@@ -357,12 +352,11 @@
                             markersDrawn = true;
                         }
                         
-                        if (document.getElementById('progress-ui').classList.contains('ui-visible')) {
-                            document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
-                            let percent = (dur > 0) ? (cur / dur * 100) : 0;
-                            document.getElementById('progress-bar-fill').style.width = percent + '%';
-                            updateClock(); 
-                        }
+                        // --- V2.0.013 FIX: Live Update immer aktiv! ---
+                        document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
+                        let percent = (dur > 0) ? (cur / dur * 100) : 0;
+                        document.getElementById('progress-bar-fill').style.width = percent + '%';
+                        updateClock(); 
                         
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
                             type: "TIME_UPDATE", currentTime: cur, duration: dur
