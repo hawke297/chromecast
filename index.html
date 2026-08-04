@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.010</h1>
+    <h1 id="version-display">hawke297 player | v2.0.011</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -79,7 +79,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.010";
+        const PLAYER_VERSION = "2.0.011";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -247,7 +247,7 @@
                 }
             }
             else if (data.type === "SET_BACKGROUND") {
-                document.getElementById('version-display').style.display = 'none'; // Version ausblenden!
+                document.getElementById('version-display').style.display = 'none'; 
                 if (data.url) {
                     bgImageElement.src = data.url;
                     let currentState = playerManager.getPlayerState();
@@ -295,6 +295,12 @@
                 mediaInfo.metadata = metadata;
                 request.media = mediaInfo;
                 request.autoplay = true;
+                
+                // --- NEU: HIER WIRD DIE ZEIT JETZT ANGEWENDET! ---
+                if (data.start_time) {
+                    request.currentTime = data.start_time;
+                }
+
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
