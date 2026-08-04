@@ -15,6 +15,9 @@
             --ui-bottom-offset: 0px; 
             --ui-side-margin: 0px; 
             --ui-border-radius: 0px; 
+            
+            /* NEU: Variablen für den Titel */
+            --title-display: block;
         }
 
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
@@ -35,6 +38,16 @@
             color: var(--clock-color); padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
             z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
             display: var(--clock-display);
+        }
+
+        /* NEU: Styling für den Folgentitel */
+        #title-ui {
+            position: absolute; 
+            top: 30px; left: 50%; transform: translateX(-50%); /* Standard: Oben Zentriert */
+            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
+            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
+            display: var(--title-display);
         }
 
         #progress-ui {
@@ -62,10 +75,11 @@
     </style>
 </head>
 <body>
-    <h1 id="version-display">hawke297 player | v2.0.011</h1>
+    <h1 id="version-display">hawke297 player | v2.0.012</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
+    <div id="title-ui"></div> <!-- NEU -->
     <div id="progress-ui">
         <div id="progress-info-container">
             <div id="status-icon"></div>
@@ -79,7 +93,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.011";
+        const PLAYER_VERSION = "2.0.012";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -110,41 +124,23 @@
         
         bgImageElement.onerror = function() {
             if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "ERROR",
-                    source: "IMAGE_LOAD",
-                    message: "TV konnte Bild nicht laden. Möglicherweise CORS/Mixed Content Block! URL: " + bgImageElement.src
-                });
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." });
             }
         };
 
         bgImageElement.onload = function() {
             if (activeSenderId && bgImageElement.src) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "DEBUG",
-                    message: "Bild erfolgreich auf dem TV geladen!"
-                });
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "DEBUG", message: "Bild erfolgreich auf dem TV geladen!" });
             }
         };
         
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            console.error('Player error:', event);
             if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                    type: "ERROR",
-                    source: "VIDEO_PLAYER",
-                    message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt (Möglicherweise URL abgelaufen)")
-                });
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") });
             }
-            
             showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
-                position: "center",
-                bg_color: "rgba(150, 0, 0, 0.95)",
-                border: "2px solid white",
-                text_color: "white",
-                duration: 8000
+                position: "center", bg_color: "rgba(150, 0, 0, 0.95)", border: "2px solid white", text_color: "white", duration: 8000
             });
-            
             document.getElementById('status-icon').innerHTML = SVG_ERROR;
             bgImageElement.style.opacity = "1.0"; 
             showCustomUI(true); 
@@ -155,54 +151,40 @@
             const notif = document.createElement('div');
             notif.className = 'notification-box';
             notif.innerHTML = text;
-            
             notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
             notif.style.color = config.text_color || "#ffffff";
-            if (config.border) notif.style.border = config.border;
-            else notif.style.border = "none";
-            
-            if (config.position === "center") {
-                notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)";
-            } else if (config.position === "top-right") {
-                notif.style.top = "30px"; notif.style.right = "30px";
-            } else if (config.position === "bottom") {
-                notif.style.bottom = "150px"; notif.style.left = "50%"; notif.style.transform = "translateX(-50%)";
-            } else if (config.position === "top-left") {
-                notif.style.top = "100px"; notif.style.left = "30px";
-            }
-
+            if (config.border) notif.style.border = config.border; else notif.style.border = "none";
+            if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
+            else if (config.position === "top-right") { notif.style.top = "30px"; notif.style.right = "30px"; }
+            else if (config.position === "bottom") { notif.style.bottom = "150px"; notif.style.left = "50%"; notif.style.transform = "translateX(-50%)"; }
+            else if (config.position === "top-left") { notif.style.top = "100px"; notif.style.left = "30px"; }
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
-            
-            setTimeout(() => {
-                notif.style.opacity = "0";
-                setTimeout(() => notif.remove(), 300);
-            }, config.duration || 4000);
+            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
         }
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
-            let m = Math.floor(seconds / 60);
-            let s = Math.floor(seconds % 60);
+            let m = Math.floor(seconds / 60); let s = Math.floor(seconds % 60);
             return m + ":" + (s < 10 ? "0" : "") + s;
         }
 
         function updateClock() {
-            let now = new Date();
-            let h = now.getHours();
-            let m = now.getMinutes();
+            let now = new Date(); let h = now.getHours(); let m = now.getMinutes();
             document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
         }
 
         function showCustomUI(keepOpen) {
             document.getElementById('progress-ui').classList.add('ui-visible');
             document.getElementById('clock-ui').classList.add('ui-visible');
+            document.getElementById('title-ui').classList.add('ui-visible'); // NEU: Titel mit einblenden
             updateClock();
             if (uiTimeout) clearTimeout(uiTimeout);
             if (!keepOpen) {
                 uiTimeout = setTimeout(() => {
                     document.getElementById('progress-ui').classList.remove('ui-visible');
                     document.getElementById('clock-ui').classList.remove('ui-visible');
+                    document.getElementById('title-ui').classList.remove('ui-visible'); // NEU: Titel mit ausblenden
                 }, 4000);
             }
         }
@@ -219,6 +201,21 @@
                 if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
                 if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
                 if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
+                
+                // NEU: Titel Konfiguration
+                if (data.title_visible !== undefined) {
+                    root.style.setProperty('--title-display', data.title_visible ? 'block' : 'none');
+                }
+                if (data.title_position) {
+                    const titleUi = document.getElementById('title-ui');
+                    if (data.title_position === 'bottom') {
+                        titleUi.style.top = 'auto';
+                        titleUi.style.bottom = '120px'; // Schwebt leicht über der Fortschrittsleiste
+                    } else {
+                        titleUi.style.bottom = 'auto';
+                        titleUi.style.top = '30px';
+                    }
+                }
                 
                 if (data.ui_bg_visible !== undefined) {
                     if (data.ui_bg_visible) {
@@ -277,6 +274,11 @@
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
                 
+                // NEU: Titel setzen, falls vorhanden
+                if (data.title) {
+                    document.getElementById('title-ui').innerText = data.title;
+                }
+
                 if (data.bg_image) {
                     bgImageElement.src = data.bg_image;
                 }
@@ -291,12 +293,10 @@
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
                 let metadata = new cast.framework.messages.GenericMediaMetadata();
                 metadata.title = data.title || "Custom Stream";
-                metadata.subtitle = data.subtitle || "";
                 mediaInfo.metadata = metadata;
                 request.media = mediaInfo;
                 request.autoplay = true;
                 
-                // --- NEU: HIER WIRD DIE ZEIT JETZT ANGEWENDET! ---
                 if (data.start_time) {
                     request.currentTime = data.start_time;
                 }
@@ -342,7 +342,6 @@
                             currentSkips.forEach(skip => {
                                 let safeStart = Math.min(skip.start, dur);
                                 let safeEnd = Math.min(skip.end, dur);
-                                
                                 let startPct = (safeStart / dur) * 100;
                                 let widthPct = ((safeEnd - safeStart) / dur) * 100;
                                 
@@ -375,15 +374,10 @@
 
         window.addEventListener('keydown', function(event) {
             if (event.key === "BrowserBack" || event.key === "Escape") {
-                event.preventDefault(); 
-                event.stopPropagation(); 
+                event.preventDefault(); event.stopPropagation(); 
             }
             if (activeSenderId) {
-                try {
-                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                        type: "KEY_PRESS", key: event.key, code: event.code
-                    });
-                } catch (e) {}
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
             }
         });
 
