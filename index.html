@@ -479,9 +479,11 @@
             }
         });
 
+        // FIX: Event-Listener blockiert jetzt zuverlässig das ungewollte Native-Spulen des TVs!
         window.addEventListener('keydown', function(event) {
-            if (event.key === "BrowserBack" || event.key === "Escape" || event.key === "Back") {
-                event.preventDefault(); event.stopPropagation(); 
+            if (["BrowserBack", "Escape", "Back", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"].includes(event.key)) {
+                event.preventDefault(); 
+                event.stopPropagation(); 
             }
             if (activeSenderId) {
                 try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
