@@ -36,7 +36,6 @@
         }
         body.preset-prime-pro #prime-osd-container { display: flex; }
 
-
         /* --- PRIME PROFI OSD --- */
         #prime-osd-container {
             display: none; 
@@ -58,7 +57,10 @@
         .prime-progress-row { display: flex; align-items: center; padding: 0 50px 20px 50px; gap: 20px; }
         .prime-time { font-family: monospace; font-size: 20px; width: 80px; text-align: center; }
         .prime-bar-wrap { flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.2); position: relative; border: 2px solid transparent; transition: 0.2s; }
-        .prime-bar-fill { height: 100%; border-radius: 6px; background: white; width: 0%; transition: width 0.5s linear; }
+        
+        /* FIX: Wir nehmen die Transition (Animation) vom Balken-Fill weg, damit das Spulen absolut instant aussieht! */
+        .prime-bar-fill { height: 100%; border-radius: 6px; background: white; width: 0%; }
+        
         .prime-bar-wrap.focused { border-color: white; transform: scaleY(1.3); }
 
         .prime-controls-row { display: flex; justify-content: center; gap: 40px; padding-bottom: 30px; }
@@ -117,10 +119,9 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display">hawke297 player | v2.3.0</h1>
+    <h1 id="version-display">hawke297 player | v2.3.1</h1>
     <img id="bg-image" />
     
-    <!-- FIX: Notification Layer in den Vordergrund für Beenden-Bestätigungen -->
     <div id="notification-layer" style="z-index: 10000;"></div>
     
     <div id="clock-ui">00:00</div>
@@ -143,7 +144,6 @@
             <div class="prime-time" id="prime-time-total">0:00</div>
         </div>
         <div class="prime-controls-row">
-            <!-- Restart, Play, Fav, Subs -->
             <div class="prime-btn" id="prime-row-1-col-0" data-row="1" data-col="0"><svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></div>
             <div class="prime-btn" id="prime-row-1-col-1" data-row="1" data-col="1"><div id="prime-play-icon"></div></div>
             <div class="prime-btn" id="prime-row-1-col-2" data-row="1" data-col="2"><div id="prime-fav-icon"></div></div>
@@ -155,7 +155,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.3.0";
+        const PLAYER_VERSION = "2.3.1";
         document.getElementById('version-display').style.display = 'none';
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
@@ -178,16 +178,19 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
         options.disableIdleTimeout = true; 
 
-        // --- DIE GEHEIME ERLAUBNIS FÜR PYTHON ---
-        let isPythonSeek = false;
+        // --- FIX: Die Spul-Logik (TV nativ blockiert!) ---
         playerManager.setMessageInterceptor(cast.framework.messages.MessageType.SEEK, request => {
             if (document.body.classList.contains("preset-prime-pro")) {
-                if (!isPythonSeek) {
-                    return null; // TV Fernbedienung abwehren!
-                }
+                // Wir blockieren ALLES, was der Fernseher versucht. Wir spulen nur über unsere Buffer-Logik.
+                return null;
             }
-            return request; // Python-Befehl durchlassen
+            return request; 
         });
+
+        // --- NEU: Der Spul-Buffer für flüssiges Thumbnail-Gefühl ---
+        let seekDebounceTimer = null;
+        let virtualSeekTime = 0;
+        let isSeeking = false;
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
@@ -218,7 +221,6 @@
             gridUi.style.display = 'grid';
         });
 
-        // --- FIX: Erweitertes Notification System für die Beenden-Frage ---
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
             if (config.action === "clear") {
@@ -235,7 +237,6 @@
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
             
-            // Wenn Dauer 0, bleibt es stehen (für die Beenden-Frage wichtig)
             if (config.duration > 0) {
                 setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration);
             }
@@ -473,16 +474,42 @@
             else if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
-            else if (data.type === "NOTIFY") {
-                showNotification(data.text, data.config);
-            }
             else if (data.type === "CONTROL") {
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
+                
+                // --- FIX: DAS GEPPUFERTE SPULEN FÜR DIE PROFI-APP ---
                 else if (data.action === "SEEK") {
-                    isPythonSeek = true;
-                    playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                    setTimeout(() => { isPythonSeek = false; }, 300);
+                    if (document.body.classList.contains("preset-prime-pro")) {
+                        
+                        let dur = playerManager.getDurationSec() || 0;
+                        if (!isSeeking) {
+                            virtualSeekTime = playerManager.getCurrentTimeSec();
+                            isSeeking = true;
+                        }
+                        
+                        // Wir schieben nur den visuellen Balken
+                        if (data.value === -999999) virtualSeekTime = 0; // Restart
+                        else virtualSeekTime += data.value;
+                        
+                        if (virtualSeekTime < 0) virtualSeekTime = 0;
+                        if (virtualSeekTime > dur) virtualSeekTime = dur;
+                        
+                        document.getElementById('prime-time-current').innerText = formatTime(virtualSeekTime);
+                        document.getElementById('prime-bar-fill').style.width = (dur > 0 ? (virtualSeekTime / dur * 100) : 0) + '%';
+                        
+                        // Setze den Timeout zurück. Erst wenn 500ms keine Taste gedrückt wurde, feuern wir!
+                        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+                        seekDebounceTimer = setTimeout(() => {
+                            // Erlaubnis geben, an den nativen Player schicken, Erlaubnis entziehen.
+                            playerManager.seek(virtualSeekTime);
+                            isSeeking = false;
+                        }, 500);
+
+                    } else {
+                        // Altes Verhalten für Default-Preset
+                        playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                    }
                 }
                 else if (data.action === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
                     document.getElementById('progress-ui').classList.add('ui-visible');
@@ -542,9 +569,13 @@
                         let percent = (dur > 0) ? (cur / dur * 100) : 0;
                         document.getElementById('progress-bar-fill').style.width = percent + '%';
                         
-                        document.getElementById('prime-time-current').innerText = formatTime(cur);
-                        document.getElementById('prime-time-total').innerText = formatTime(dur);
-                        document.getElementById('prime-bar-fill').style.width = percent + '%';
+                        // Wenn wir gerade "gepuffert" spulen, updaten wir die UI NICHT mit der echten Zeit, 
+                        // sonst springt der Balken wild hin und her!
+                        if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
+                            document.getElementById('prime-time-current').innerText = formatTime(cur);
+                            document.getElementById('prime-time-total').innerText = formatTime(dur);
+                            document.getElementById('prime-bar-fill').style.width = percent + '%';
+                        }
 
                         updateClock(); 
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
@@ -553,7 +584,7 @@
             }
         });
 
-        // --- FIX: Wir fangen ALLE Tasten ab, sodass der Fernseher absolut gehorsam auf Python wartet ---
+        // Alle Tasten des Fernsehers hart abwürgen
         window.addEventListener('keydown', function(event) {
             const blockedKeys = ["BrowserBack", "Escape", "Back", "GoBack", "Return", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"];
             if (blockedKeys.includes(event.key)) {
