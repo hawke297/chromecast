@@ -87,12 +87,17 @@
             /* NEU: Text in einer Zeile halten und am Rand abschneiden */
             white-space: nowrap; overflow: hidden; text-overflow: clip;
         }
-        
-        /* Die neue rote Fokus-Farbe */
-        .grid-tile.focused {
-            border-color: #d0383e; transform: scale(1.05);
-            box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8);
-            z-index: 10;
+        /* NEU: Die CSS Animation für das Scrollen */
+        @keyframes marquee {
+            0%   { transform: translateX(5%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* NEU: Nur wenn die Kachel "focused" ist, animieren wir den Titel */
+        .grid-tile.focused .title {
+            animation: marquee 8s linear infinite; /* 8 Sekunden für einen Durchlauf */
+            text-align: left; /* Links ausrichten, damit er sauber reinrollt */
+            padding-left: 100%; /* Startet ganz rechts im Bild */
         }
         
         /* Das Vorschau-Video (ehemals Bild) füllt die Kachel */
