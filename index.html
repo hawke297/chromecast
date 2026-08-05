@@ -37,9 +37,9 @@
         body.preset-prime-pro #prime-osd-container { display: flex; }
 
 
-        /* --- NEU: PRIME PROFI OSD --- */
+        /* --- PRIME PROFI OSD --- */
         #prime-osd-container {
-            display: none; /* Erst aktiv mit Klasse preset-prime-pro */
+            display: none; 
             position: absolute; bottom: 0; left: 0; width: 100vw; height: 60vh;
             flex-direction: column; justify-content: flex-end; z-index: 9998;
             background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
@@ -49,21 +49,18 @@
 
         #prime-osd-container.osd-visible { opacity: 1; transform: translateY(0); }
 
-        /* Ebene 1: Metadaten (Pop-In) */
         .prime-meta { padding: 0 50px 20px 50px; }
         .prime-title { font-size: 32px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 4px black; }
         .prime-actors { font-size: 18px; color: #aaa; margin-bottom: 10px; }
         .prime-tags { display: flex; gap: 10px; flex-wrap: wrap; }
         .tag-badge { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 4px; font-size: 14px; }
 
-        /* Ebene 2: Fortschrittsbalken */
         .prime-progress-row { display: flex; align-items: center; padding: 0 50px 20px 50px; gap: 20px; }
         .prime-time { font-family: monospace; font-size: 20px; width: 80px; text-align: center; }
         .prime-bar-wrap { flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.2); position: relative; border: 2px solid transparent; transition: 0.2s; }
         .prime-bar-fill { height: 100%; border-radius: 6px; background: white; width: 0%; transition: width 0.5s linear; }
         .prime-bar-wrap.focused { border-color: white; transform: scaleY(1.3); }
 
-        /* Ebene 3: Control Buttons */
         .prime-controls-row { display: flex; justify-content: center; gap: 40px; padding-bottom: 30px; }
         .prime-btn { 
             width: 60px; height: 60px; border-radius: 30px; background: rgba(255,255,255,0.1); 
@@ -72,7 +69,6 @@
         }
         .prime-btn.focused { border-color: white; background: rgba(255,255,255,0.3); transform: scale(1.15); box-shadow: 0 0 15px white; }
 
-        /* Ebene 4: Recommendations (2-zeilig, endlos) */
         .prime-recs-wrapper { padding: 0 50px; }
         .prime-recs-grid {
             display: grid; grid-template-rows: 1fr 1fr; grid-auto-flow: column; gap: 15px;
@@ -178,6 +174,17 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
         options.disableIdleTimeout = true; 
 
+        // --- FIX: TV-Hardware Spulen blockieren ---
+        let isPythonSeek = false;
+        playerManager.setMessageInterceptor(cast.framework.messages.MessageType.SEEK, request => {
+            if (document.body.classList.contains("preset-prime-pro")) {
+                if (!isPythonSeek) {
+                    return null; // Wenn der Fernseher nativ spulen will: Blockieren!
+                }
+            }
+            return request;
+        });
+
         let timeUpdateInterval = null;
         let activeSenderId = null; 
         let uiTimeout = null; 
@@ -207,10 +214,43 @@
             gridUi.style.display = 'grid';
         });
 
+        function showNotification(text, config) {
+            const layer = document.getElementById('notification-layer');
+            const notif = document.createElement('div');
+            notif.className = 'notification-box';
+            notif.innerHTML = text;
+            notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
+            notif.style.color = config.text_color || "#ffffff";
+            if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
+            layer.appendChild(notif);
+            setTimeout(() => notif.style.opacity = "1", 50);
+            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
+        }
+
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
             let m = Math.floor(seconds / 60); let s = Math.floor(seconds % 60);
             return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        function updateClock() {
+            let now = new Date(); let h = now.getHours(); let m = now.getMinutes();
+            document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        }
+
+        function showCustomUI(keepOpen) {
+            document.getElementById('progress-ui').classList.add('ui-visible');
+            document.getElementById('clock-ui').classList.add('ui-visible');
+            document.getElementById('title-ui').classList.add('ui-visible');
+            updateClock();
+            if (uiTimeout) clearTimeout(uiTimeout);
+            if (!keepOpen) {
+                uiTimeout = setTimeout(() => {
+                    document.getElementById('progress-ui').classList.remove('ui-visible');
+                    document.getElementById('clock-ui').classList.remove('ui-visible');
+                    document.getElementById('title-ui').classList.remove('ui-visible');
+                }, 4000);
+            }
         }
 
         function updateLeftMenuVisuals(items, focusIndex) {
@@ -312,7 +352,6 @@
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
 
-                // Focus Update
                 document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
                 const target = document.getElementById(`prime-row-${data.row}-col-${data.col}`);
                 if (target) {
@@ -371,6 +410,10 @@
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
                 
+                // --- FIX: Wir verstecken Titel und Version wieder brav! ---
+                document.getElementById('version-display').style.display = 'none';
+                document.getElementById('title-ui').classList.remove('ui-visible');
+                
                 if (previewTimer) clearTimeout(previewTimer);
                 let currentTiles = gridUi.children;
                 for(let i=0; i<data.items.length; i++) {
@@ -418,7 +461,12 @@
             else if (data.type === "CONTROL") {
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
-                else if (data.action === "SEEK") playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                else if (data.action === "SEEK") {
+                    // --- FIX: Unser Python-Skript bekommt hier explizit die Spul-Erlaubnis! ---
+                    isPythonSeek = true;
+                    playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                    isPythonSeek = false;
+                }
                 else if (data.action === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
                     document.getElementById('progress-ui').classList.add('ui-visible');
                     document.getElementById('clock-ui').classList.add('ui-visible');
@@ -444,7 +492,17 @@
                 document.body.style.backgroundColor = "#000000";
                 
                 document.getElementById('cast-video').style.display = 'block';
+                document.getElementById('version-display').style.display = 'none';
+                
                 if (previewTimer) clearTimeout(previewTimer);
+                
+                if (data.title) {
+                    document.getElementById('title-ui').innerText = data.title;
+                    document.getElementById('title-ui').classList.remove('ui-visible'); 
+                }
+                if (data.bg_image) {
+                    bgImageElement.src = data.bg_image;
+                }
                 
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
@@ -467,7 +525,6 @@
                         let percent = (dur > 0) ? (cur / dur * 100) : 0;
                         document.getElementById('progress-bar-fill').style.width = percent + '%';
                         
-                        // OSD Updates for Prime UI
                         document.getElementById('prime-time-current').innerText = formatTime(cur);
                         document.getElementById('prime-time-total').innerText = formatTime(dur);
                         document.getElementById('prime-bar-fill').style.width = percent + '%';
@@ -479,9 +536,10 @@
             }
         });
 
-        // FIX: Event-Listener blockiert jetzt zuverlässig das ungewollte Native-Spulen des TVs!
+        // --- FIX: Erweitertes Tasten-Blockieren. Jetzt rutscht dem TV nichts mehr durch! ---
         window.addEventListener('keydown', function(event) {
-            if (["BrowserBack", "Escape", "Back", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"].includes(event.key)) {
+            const blockedKeys = ["BrowserBack", "Escape", "Back", "GoBack", "Return", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"];
+            if (blockedKeys.includes(event.key)) {
                 event.preventDefault(); 
                 event.stopPropagation(); 
             }
