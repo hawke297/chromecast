@@ -74,13 +74,11 @@
             box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
         }
         
-        /* Das statische Bild ist unten (z-index 1) */
         .grid-tile .media-layer { 
             width: 100%; height: 100%; object-fit: cover; 
             position: absolute; top: 0; left: 0; z-index: 1; 
         }
 
-        /* Das Video liegt drüber (z-index 2), ist aber anfangs unsichtbar */
         .grid-tile .video-layer { 
             width: 100%; height: 100%; object-fit: cover; 
             position: absolute; top: 0; left: 0; z-index: 2; 
@@ -93,25 +91,29 @@
             overflow: hidden; text-align: center;
         }
 
+        /* NEU: Hardware-Beschleunigung für den Text */
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
             padding: 0 15px; 
+            will-change: transform; 
+            transform: translateZ(0); 
         }
 
         @keyframes marquee { 
-            0% { transform: translateX(0); } 
-            100% { transform: translateX(-100%); } 
+            0% { transform: translateX(0) translateZ(0); } 
+            100% { transform: translateX(-100%) translateZ(0); } 
         }
 
-        .grid-tile.focused .title-container span {
+        /* NEU: Die is-playing Klasse steuert jetzt, ab wann der Text sich bewegt */
+        .grid-tile.focused.is-playing .title-container span {
             padding-left: 100%; animation: marquee 8s linear infinite;
         }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.015</h1>
+    <h1 id="version-display">hawke297 player | v2.0.016</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -129,7 +131,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.015";
+        const PLAYER_VERSION = "2.0.016";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -153,18 +155,14 @@
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
-        
         let previewTimer = null; 
         
         const bgImageElement = document.getElementById('bg-image');
 
         function sendTelemetry(msg) {
             if (activeSenderId) {
-                try {
-                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg });
-                } catch(e) {}
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg }); } catch(e) {}
             }
-            console.log("TV-TELEMETRY: " + msg);
         }
 
         window.onerror = function(message, source, lineno, colno, error) {
@@ -244,11 +242,11 @@
                     
                     let isFocused = (i === data.focus_index);
                     tile.className = 'grid-tile' + (isFocused ? ' focused' : '');
+                    tile.classList.remove('is-playing'); // Text anhalten bei Neubau
                     
                     let mediaContainer = tile.querySelector('.media-container');
                     let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
                     
-                    // 1. Das statische Bild ist immer da und bleibt da!
                     let imgLayer = mediaContainer.querySelector('img.media-layer');
                     if (!imgLayer) {
                         imgLayer = document.createElement('img');
@@ -259,18 +257,16 @@
                         imgLayer.src = imageSrc;
                     }
                     
-                    // 2. Brutales Memory-Management für alte Videos
                     if (!isFocused) {
                         let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
                         existingVideos.forEach(v => {
                             v.pause();
-                            v.removeAttribute('src'); // Zwingt den TV, den Decoder-Speicher zu leeren!
+                            v.removeAttribute('src'); 
                             v.load();
                             v.remove();
                         });
                     }
                     
-                    // 3. Die Gold-Lösung (Cross-Fading nach Hover-Delay)
                     if (isFocused && item.video_preview && item.video_preview !== "") {
                         previewTimer = setTimeout(() => {
                             try {
@@ -285,9 +281,10 @@
                                     sendTelemetry("Vorschau-Player abgestürzt bei: " + item.video_preview);
                                 };
                                 
-                                // DER TRICK: Erst einfaden, wenn das erste Frame gerendert und abgespielt wird
+                                // WICHTIG: Erst wenn das Video wirklich spielt, schalten wir den Text-Scroll an!
                                 v.onplaying = function() {
                                     v.style.opacity = "1";
+                                    tile.classList.add('is-playing');
                                 };
                                 
                                 mediaContainer.appendChild(v);
@@ -300,6 +297,11 @@
                                 sendTelemetry("Exception beim Bauen des Vorschau-Videos.");
                             }
                         }, 700); 
+                    } else if (isFocused) {
+                        // Fallback: Wenn es kein Video gibt, starte den Text nach dem Timer trotzdem
+                        previewTimer = setTimeout(() => {
+                            tile.classList.add('is-playing');
+                        }, 700);
                     }
                     
                     let titleSpan = tile.querySelector('.title-container span');
