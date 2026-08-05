@@ -5,17 +5,11 @@
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         :root {
-            --clock-display: block;
-            --clock-color: #eeeeee;
-            --progress-color: #e50914;
-            --ui-bg-color: transparent; 
-            --ui-border: none; 
+            --clock-display: block; --clock-color: #eeeeee; --progress-color: #e50914;
+            --ui-bg-color: transparent; --ui-border: none; 
             --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
-            --ui-box-shadow: none; 
-            --ui-bottom-offset: 0px; 
-            --ui-side-margin: 0px; 
-            --ui-border-radius: 0px; 
-            --title-display: block;
+            --ui-box-shadow: none; --ui-bottom-offset: 0px; --ui-side-margin: 0px; 
+            --ui-border-radius: 0px; --title-display: block;
         }
 
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
@@ -39,8 +33,7 @@
         }
 
         #title-ui {
-            position: absolute; 
-            top: 30px; left: 50%; transform: translateX(-50%); 
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%); 
             background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
             color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
             z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
@@ -48,109 +41,61 @@
         }
 
         #progress-ui {
-            position: absolute; 
-            bottom: var(--ui-bottom-offset); 
-            left: var(--ui-side-margin); 
-            right: var(--ui-side-margin);
-            border-radius: var(--ui-border-radius);
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            position: absolute; bottom: var(--ui-bottom-offset); left: var(--ui-side-margin); right: var(--ui-side-margin);
+            border-radius: var(--ui-border-radius); background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
             padding: 15px 20px; z-index: 9998; opacity: 0; transition: all 0.3s ease-in-out;
         }
-        
         .ui-visible { opacity: 1 !important; }
         
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
-        
         #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
-        
         #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
-        
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
 
         /* --- SMART TV GRID LAYOUT --- */
         #smart-tv-ui {
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh;
-            z-index: 50; 
-            display: none; 
-            background-color: #0f0f15;
-            padding: 60px; 
-            box-sizing: border-box;
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 30px;
-            transition: transform 0.2s ease-out; 
-            overflow: visible;
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 50; display: none; background-color: #0f0f15;
+            padding: 60px; box-sizing: border-box;
+            grid-template-columns: repeat(3, 1fr); gap: 30px;
+            transition: transform 0.2s ease-out; overflow: visible;
         }
         
         .grid-tile {
-            background-color: #1e1e2e; 
-            border-radius: 12px; 
-            overflow: hidden;
-            border: 6px solid transparent; 
-            transition: border-color 0.1s, transform 0.1s;
-            position: relative; 
-            height: 280px; 
-            display: block;
+            background-color: #1e1e2e; border-radius: 12px; overflow: hidden;
+            border: 6px solid transparent; transition: border-color 0.1s, transform 0.1s;
+            position: relative; height: 280px; display: block;
         }
         
         .grid-tile.focused {
-            border-color: #d0383e; 
-            transform: scale(1.05);
-            box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8);
-            z-index: 10;
+            border-color: #d0383e; transform: scale(1.05);
+            box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
         }
         
-        .grid-tile video { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            z-index: 1; 
+        /* Das Bild UND das Video füllen exakt die Kachel aus */
+        .grid-tile .media-layer { 
+            width: 100%; height: 100%; object-fit: cover; 
+            position: absolute; top: 0; left: 0; z-index: 1; 
         }
         
-        /* Der statische Hintergrund-Balken */
         .grid-tile .title-container { 
-            position: absolute; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            background: rgba(0,0,0,0.8); 
-            padding: 15px; 
-            box-sizing: border-box; 
-            z-index: 2; 
-            margin: 0; 
-            overflow: hidden; /* Beschneidet den animierten Text am Rand */
-            text-align: center;
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            background: rgba(0,0,0,0.8); padding: 15px; box-sizing: border-box; 
+            z-index: 2; margin: 0; overflow: hidden; text-align: center;
         }
 
-        /* Der Text selbst (im SPAN) */
         .grid-tile .title-container span {
-            display: inline-block;
-            color: white; 
-            font-size: 22px; 
-            font-weight: bold; 
-            font-family: sans-serif;
-            text-shadow: 1px 1px 3px black;
-            white-space: nowrap; 
+            display: inline-block; color: white; font-size: 22px; font-weight: bold; 
+            font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
         }
 
-        /* Die Animation */
-        @keyframes marquee {
-            0%   { transform: translateX(100%); } /* Startet ganz rechts */
-            100% { transform: translateX(-100%); } /* Fährt nach ganz links raus */
-        }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* Auslöser der Animation */
         .grid-tile.focused .title-container span {
-            animation: marquee 8s linear infinite;
+            animation: marquee 8s linear infinite; text-align: left; padding-left: 100%; 
         }
     </style>
 </head>
@@ -198,8 +143,6 @@
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
-        let currentSkips = [];
-        let markersDrawn = false;
         
         const bgImageElement = document.getElementById('bg-image');
         
@@ -210,9 +153,7 @@
             notif.innerHTML = text;
             notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
             notif.style.color = config.text_color || "#ffffff";
-            if (config.border) notif.style.border = config.border; else notif.style.border = "none";
             if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
-            else if (config.position === "top-right") { notif.style.top = "30px"; notif.style.right = "30px"; }
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
             setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
@@ -248,6 +189,7 @@
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
+            // --- HYBRIDES GRID (PERFORMANCE OPTIMIERT) ---
             if (data.type === "UPDATE_GRID_WINDOW") {
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
@@ -265,30 +207,40 @@
                     if (!tile) {
                         tile = document.createElement('div');
                         tile.className = 'grid-tile';
-                        // NEU: Title ist nun in einem Container mit SPAN gewrappt
-                        tile.innerHTML = `<video src="" loop muted playsinline></video><div class="title-container"><span></span></div>`;
+                        // Das DIV wird als Container für Bild ODER Video genutzt
+                        tile.innerHTML = `<div class="media-container"></div><div class="title-container"><span></span></div>`;
                         gridUi.appendChild(tile);
                     }
                     
                     let isFocused = (i === data.focus_index);
                     tile.className = 'grid-tile' + (isFocused ? ' focused' : '');
                     
-                    let video = tile.querySelector('video');
-                    if(video.src !== item.image) {
-                        video.src = item.image;
-                    }
+                    let mediaContainer = tile.querySelector('.media-container');
                     
-                    if (isFocused) {
-                        let playPromise = video.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(error => { console.log("Autoplay blocked"); });
+                    // WICHTIG: Wenn fokussiert UND ein Video-Preview existiert, baue das <video> Tag
+                    if (isFocused && item.video_preview && item.video_preview !== "") {
+                        // Prüfen ob schon ein Video drin ist
+                        let existingVideo = mediaContainer.querySelector('video');
+                        if (!existingVideo || existingVideo.src !== item.video_preview) {
+                            mediaContainer.innerHTML = `<video class="media-layer" src="${item.video_preview}" loop muted playsinline></video>`;
+                            let v = mediaContainer.querySelector('video');
+                            let playPromise = v.play();
+                            if (playPromise !== undefined) playPromise.catch(e => {});
+                        } else if (existingVideo && existingVideo.paused) {
+                            existingVideo.play();
                         }
-                    } else {
-                        video.pause();
-                        video.currentTime = 0; 
+                    } 
+                    // Wenn NICHT fokussiert, baue IMMER nur das super-schnelle statische <img> Tag!
+                    else {
+                        let existingImg = mediaContainer.querySelector('img');
+                        // Fallback nutzen, falls kein Bild da ist, aber ein Video
+                        let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
+                        
+                        if (!existingImg || existingImg.src !== imageSrc) {
+                            mediaContainer.innerHTML = `<img class="media-layer" src="${imageSrc}">`;
+                        }
                     }
                     
-                    // Den Text setzen wir nun im <span>
                     let titleSpan = tile.querySelector('.title-container span');
                     if(titleSpan.innerText !== item.title) {
                         titleSpan.innerText = item.title;
@@ -307,61 +259,6 @@
                 const root = document.documentElement;
                 if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
                 if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
-                if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
-                
-                if (data.title_visible !== undefined) {
-                    root.style.setProperty('--title-display', data.title_visible ? 'block' : 'none');
-                }
-                if (data.title_position) {
-                    const titleUi = document.getElementById('title-ui');
-                    if (data.title_position === 'bottom') {
-                        titleUi.style.top = 'auto';
-                        titleUi.style.bottom = '120px';
-                    } else {
-                        titleUi.style.bottom = 'auto';
-                        titleUi.style.top = '30px';
-                    }
-                }
-                
-                if (data.ui_bg_visible !== undefined) {
-                    if (data.ui_bg_visible) {
-                        root.style.setProperty('--ui-bg-color', 'rgba(30, 30, 40, 0.85)');
-                        root.style.setProperty('--ui-border', '1px solid rgba(255, 255, 255, 0.1)');
-                        root.style.setProperty('--ui-text-shadow', '1px 1px 2px black');
-                        root.style.setProperty('--ui-box-shadow', '0px 8px 20px rgba(0, 0, 0, 0.6)');
-                    } else {
-                        root.style.setProperty('--ui-bg-color', 'transparent');
-                        root.style.setProperty('--ui-border', 'none');
-                        root.style.setProperty('--ui-text-shadow', '2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black');
-                        root.style.setProperty('--ui-box-shadow', 'none'); 
-                    }
-                }
-
-                if (data.full_width !== undefined) {
-                    if (data.full_width) {
-                        root.style.setProperty('--ui-side-margin', '0px');
-                        root.style.setProperty('--ui-bottom-offset', '0px');
-                        root.style.setProperty('--ui-border-radius', '0px');
-                    } else {
-                        root.style.setProperty('--ui-side-margin', '5%');
-                        root.style.setProperty('--ui-bottom-offset', (data.subtitle_offset !== undefined ? data.subtitle_offset : 40) + 'px');
-                        root.style.setProperty('--ui-border-radius', '12px');
-                    }
-                }
-            }
-            else if (data.type === "SET_BACKGROUND") {
-                document.getElementById('version-display').style.display = 'none'; 
-                if (data.url) {
-                    bgImageElement.src = data.url;
-                    let currentState = playerManager.getPlayerState();
-                    if (currentState === 'IDLE' || currentState === 'BUFFERING' || !currentState) {
-                        bgImageElement.style.opacity = "1.0";
-                    } else {
-                        bgImageElement.style.opacity = "0.15";
-                    }
-                } else {
-                    bgImageElement.style.opacity = "0";
-                }
             }
             else if (data.type === "NOTIFY") {
                 showNotification(data.text, data.config);
