@@ -21,7 +21,7 @@
         .notification-box {
             position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; 
             box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8);
-            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center;
+            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold;
         }
         
         #clock-ui {
@@ -55,12 +55,13 @@
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
 
+        /* --- DAS HAUPT GRID --- */
         #smart-tv-ui {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 50; display: none; background-color: #0f0f15;
             padding: 60px; box-sizing: border-box;
             grid-template-columns: repeat(3, 1fr); gap: 30px;
-            transition: transform 0.2s ease-out; overflow: visible;
+            transition: transform 0.2s ease-out, filter 0.3s; overflow: visible;
         }
         
         .grid-tile {
@@ -74,17 +75,8 @@
             box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
         }
         
-        .grid-tile .media-layer { 
-            width: 100%; height: 100%; object-fit: cover; 
-            position: absolute; top: 0; left: 0; z-index: 1; 
-        }
-
-        /* FIX: Keine weiche Blende (opacity) mehr! Harter Schnitt schont die TV-GPU. */
-        .grid-tile .video-layer { 
-            width: 100%; height: 100%; object-fit: cover; 
-            position: absolute; top: 0; left: 0; z-index: 2; 
-            visibility: hidden; 
-        }
+        .grid-tile .media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+        .grid-tile .video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
         
         .grid-tile .title-container { 
             position: absolute; bottom: 0; left: 0; width: 100%; 
@@ -94,23 +86,54 @@
 
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
-            font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
-            padding: 0 15px; 
+            font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; 
         }
 
-        @keyframes marquee { 
-            0% { transform: translateX(0); } 
-            100% { transform: translateX(-100%); } 
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        .grid-tile.focused.is-playing .title-container span { animation: marquee 8s linear infinite; }
+
+
+        /* --- NEU: TOP & BOTTOM MENUS --- */
+        #top-menu-container, #bottom-menu-container {
+            position: absolute; left: 0; width: 100vw; height: 140px;
+            z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex; align-items: center; overflow: hidden; box-sizing: border-box;
         }
 
-        .grid-tile.focused.is-playing .title-container span {
-            animation: marquee 8s linear infinite;
+        #top-menu-container {
+            top: 0; transform: translateY(-100%);
+            background: linear-gradient(to bottom, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
+        }
+
+        #bottom-menu-container {
+            bottom: 0; transform: translateY(100%); justify-content: center;
+            background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
+        }
+
+        .menu-track {
+            display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw; /* Startet in der Mitte */
+        }
+
+        .menu-item {
+            color: #666; font-size: 26px; font-weight: bold; margin: 0 15px;
+            padding: 12px 25px; border-radius: 12px; border: 3px solid transparent;
+            white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4);
+        }
+
+        .menu-item.focused {
+            color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
+            transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
         }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.019</h1>
+    
+    <!-- NEU: Menü Layer -->
+    <div id="top-menu-container"><div class="menu-track" id="top-menu-track"></div></div>
+    <div id="bottom-menu-container"><div class="menu-track" id="bottom-menu-track"></div></div>
+
+    <h1 id="version-display">hawke297 player | v2.1.0</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -128,7 +151,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.019";
+        const PLAYER_VERSION = "2.1.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -155,6 +178,7 @@
         let previewTimer = null; 
         
         const bgImageElement = document.getElementById('bg-image');
+        const gridUi = document.getElementById('smart-tv-ui');
 
         function sendTelemetry(msg) {
             if (activeSenderId) {
@@ -210,23 +234,67 @@
             }
         }
 
+        // --- HILFSFUNKTION FÜR MENÜ SCROLLING ---
+        function updateMenuVisuals(trackId, items, focusIndex) {
+            const track = document.getElementById(trackId);
+            track.innerHTML = "";
+            let focusEl = null;
+
+            items.forEach((txt, idx) => {
+                let d = document.createElement('div');
+                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
+                d.innerText = txt;
+                track.appendChild(d);
+                if (idx === focusIndex) focusEl = d;
+            });
+
+            // Zentriere das fokussierte Element
+            if (focusEl) {
+                const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
+                track.style.transform = `translateX(calc(50vw - ${offset}px))`;
+            }
+        }
+
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            if (data.type === "UPDATE_GRID_WINDOW") {
+            // --- NEU: MENÜ STEUERUNG ---
+            if (data.type === "TOP_MENU") {
+                const container = document.getElementById('top-menu-container');
+                if (data.action === "show" || data.action === "update") {
+                    container.style.transform = "translateY(0)";
+                    gridUi.style.filter = "brightness(0.3) blur(2px)"; // Hintergrund abdunkeln
+                    updateMenuVisuals("top-menu-track", data.items, data.focus);
+                } else if (data.action === "hide") {
+                    container.style.transform = "translateY(-100%)";
+                    gridUi.style.filter = "none";
+                }
+            }
+            
+            else if (data.type === "BOTTOM_MENU") {
+                const container = document.getElementById('bottom-menu-container');
+                if (data.action === "show" || data.action === "update") {
+                    container.style.transform = "translateY(0)";
+                    gridUi.style.filter = "brightness(0.3) blur(2px)";
+                    updateMenuVisuals("bottom-menu-track", data.items, data.focus);
+                } else if (data.action === "hide") {
+                    container.style.transform = "translateY(100%)";
+                    gridUi.style.filter = "none";
+                }
+            }
+
+            else if (data.type === "UPDATE_GRID_WINDOW") {
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
                 bgImageElement.style.opacity = "0"; 
                 
-                const gridUi = document.getElementById('smart-tv-ui');
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 
                 let currentTiles = gridUi.children;
-                
                 for(let i=0; i<data.items.length; i++) {
                     let item = data.items[i];
                     let tile = currentTiles[i];
@@ -244,27 +312,17 @@
                     
                     let mediaContainer = tile.querySelector('.media-container');
                     
-                    // FIX: Bei JEDEM Update (z.B. durch Scrollen) ALLE Videos ausnahmslos zerstören!
-                    // So kann kein altes Video in der Kachel hängen bleiben.
                     let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
-                    existingVideos.forEach(v => {
-                        v.pause();
-                        v.removeAttribute('src'); 
-                        v.load();
-                        v.remove();
-                    });
+                    existingVideos.forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); });
 
                     let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
-                    
                     let imgLayer = mediaContainer.querySelector('img.media-layer');
                     if (!imgLayer) {
                         imgLayer = document.createElement('img');
                         imgLayer.className = 'media-layer';
                         mediaContainer.appendChild(imgLayer);
                     }
-                    if (imgLayer.src !== imageSrc) {
-                        imgLayer.src = imageSrc;
-                    }
+                    if (imgLayer.src !== imageSrc) { imgLayer.src = imageSrc; }
                     
                     if (isFocused && item.video_preview && item.video_preview !== "") {
                         previewTimer = setTimeout(() => {
@@ -272,46 +330,26 @@
                                 let v = document.createElement('video');
                                 v.className = 'video-layer';
                                 v.src = item.video_preview;
-                                v.loop = true;
-                                v.muted = true;
-                                v.playsInline = true;
-                                v.style.visibility = "hidden"; // Verhindert Flackern
+                                v.loop = true; v.muted = true; v.playsInline = true;
+                                v.style.visibility = "hidden"; 
                                 
-                                v.onerror = function() {
-                                    sendTelemetry("Vorschau-Player abgestürzt bei: " + item.video_preview);
-                                };
-                                
-                                v.onplaying = function() {
-                                    v.style.visibility = "visible"; // Harter Schnitt ist sicher für TVs
-                                    tile.classList.add('is-playing'); // Erst jetzt rollt der Text!
-                                };
+                                v.onerror = function() { sendTelemetry("Vorschau-Player abgestürzt"); };
+                                v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
                                 
                                 mediaContainer.appendChild(v);
-                                
                                 let playPromise = v.play();
-                                if (playPromise !== undefined) {
-                                    playPromise.catch(e => { sendTelemetry("Autoplay blockiert: " + e.message); });
-                                }
-                            } catch(err) {
-                                sendTelemetry("Exception beim Bauen des Vorschau-Videos.");
-                            }
+                                if (playPromise !== undefined) playPromise.catch(e => {});
+                            } catch(err) { sendTelemetry("Exception Vorschau"); }
                         }, 700); 
                     } else if (isFocused) {
-                        // Wenn es kein Video gibt, soll der Text trotzdem nach 700ms rollen
-                        previewTimer = setTimeout(() => {
-                            tile.classList.add('is-playing');
-                        }, 700);
+                        previewTimer = setTimeout(() => { tile.classList.add('is-playing'); }, 700);
                     }
                     
                     let titleSpan = tile.querySelector('.title-container span');
-                    if(titleSpan.innerText !== item.title) {
-                        titleSpan.innerText = item.title;
-                    }
+                    if(titleSpan.innerText !== item.title) { titleSpan.innerText = item.title; }
                 }
                 
-                while(gridUi.children.length > data.items.length) {
-                    gridUi.removeChild(gridUi.lastChild);
-                }
+                while(gridUi.children.length > data.items.length) { gridUi.removeChild(gridUi.lastChild); }
             }
             
             else if (data.type === "GET_VERSION") {
@@ -330,7 +368,12 @@
                 context.stop(); 
             }
             else if (data.type === "LOAD_VIDEO") {
+                // Menüs hart verstecken, falls offen
+                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
+                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                
                 document.getElementById('smart-tv-ui').style.display = 'none';
+                document.getElementById('smart-tv-ui').style.filter = 'none'; // Blur entfernen
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
