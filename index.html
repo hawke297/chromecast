@@ -8,201 +8,165 @@
             --clock-display: block; --clock-color: #eeeeee; --progress-color: #e50914;
             --ui-bg-color: transparent; --ui-border: none; 
             --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
-            --ui-box-shadow: none; --ui-bottom-offset: 0px; --ui-side-margin: 0px; 
-            --ui-border-radius: 0px; --title-display: block;
         }
 
         body { background-color: #0f0f15; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; transition: background-color 0.3s; }
-        
         #bg-image { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out; }
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
-        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
         #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
-        .notification-box {
-            position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; 
-            box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8);
-            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold;
-        }
+        .notification-box { position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8); opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold; }
         
-        #clock-ui {
-            position: absolute; top: 30px; left: 30px; 
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            color: var(--clock-color); padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
-            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
-            display: var(--clock-display);
-        }
-
-        #title-ui {
-            position: absolute; top: 30px; left: 50%; transform: translateX(-50%); 
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
-            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
-            display: var(--title-display);
-        }
-
-        #progress-ui {
-            position: absolute; bottom: var(--ui-bottom-offset); left: var(--ui-side-margin); right: var(--ui-side-margin);
-            border-radius: var(--ui-border-radius); background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            padding: 15px 20px; z-index: 9998; opacity: 0; transition: all 0.3s ease-in-out;
-        }
-        .ui-visible { opacity: 1 !important; }
-        
+        /* ALTE UI ELEMENTE (Werden in v2.3.0 mit preset "prime_pro" ausgeblendet!) */
+        #clock-ui, #title-ui, #progress-ui, h1 { z-index: 9998; text-shadow: var(--ui-text-shadow); }
+        h1 { position: absolute; top: 20px; left: 20px; font-size: 18px; color: gray; }
+        #clock-ui { position: absolute; top: 30px; left: 30px; padding: 10px 20px; font-size: 28px; font-weight: bold; opacity: 0; }
+        #title-ui { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); padding: 10px 30px; font-size: 24px; font-weight: bold; opacity: 0; }
+        #progress-ui { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; opacity: 0; transition: opacity 0.3s; }
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
-        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
-        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
-        #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
-        .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
+        #status-icon { width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
+        #progress-text { font-size: 20px; font-weight: bold; font-family: monospace; }
+        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border-radius: 4px; position: relative; }
+        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; border-radius: 4px; }
+        .ui-visible { opacity: 1 !important; }
 
-        /* --- DAS HAUPT GRID --- */
-        #smart-tv-ui {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 50; display: none; background-color: transparent; 
-            padding: 60px; box-sizing: border-box;
-            grid-template-columns: repeat(3, 1fr); gap: 30px;
-            transition: transform 0.2s ease-out, filter 0.4s ease-out, opacity 0.3s ease-out; 
-            overflow: visible;
+        /* --- PRESET SWITCH LOGIK --- */
+        body.preset-prime-pro #clock-ui, body.preset-prime-pro #title-ui, body.preset-prime-pro #progress-ui, body.preset-prime-pro h1 {
+            display: none !important;
         }
-        
-        .grid-tile {
-            background-color: #1e1e2e; border-radius: 12px; overflow: hidden;
-            border: 6px solid transparent; transition: border-color 0.1s, transform 0.1s;
-            position: relative; height: 280px; display: block;
+        body.preset-prime-pro #prime-osd-container { display: flex; }
+
+
+        /* --- NEU: PRIME PROFI OSD --- */
+        #prime-osd-container {
+            display: none; /* Erst aktiv mit Klasse preset-prime-pro */
+            position: absolute; bottom: 0; left: 0; width: 100vw; height: 60vh;
+            flex-direction: column; justify-content: flex-end; z-index: 9998;
+            background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
+            opacity: 0; transform: translateY(20px); transition: all 0.3s ease-out;
+            padding-bottom: 40px; box-sizing: border-box;
         }
-        
-        .grid-tile.focused {
-            border-color: #d0383e; transform: scale(1.05);
-            box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
+
+        #prime-osd-container.osd-visible { opacity: 1; transform: translateY(0); }
+
+        /* Ebene 1: Metadaten (Pop-In) */
+        .prime-meta { padding: 0 50px 20px 50px; }
+        .prime-title { font-size: 32px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 4px black; }
+        .prime-actors { font-size: 18px; color: #aaa; margin-bottom: 10px; }
+        .prime-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+        .tag-badge { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 4px; font-size: 14px; }
+
+        /* Ebene 2: Fortschrittsbalken */
+        .prime-progress-row { display: flex; align-items: center; padding: 0 50px 20px 50px; gap: 20px; }
+        .prime-time { font-family: monospace; font-size: 20px; width: 80px; text-align: center; }
+        .prime-bar-wrap { flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.2); position: relative; border: 2px solid transparent; transition: 0.2s; }
+        .prime-bar-fill { height: 100%; border-radius: 6px; background: white; width: 0%; transition: width 0.5s linear; }
+        .prime-bar-wrap.focused { border-color: white; transform: scaleY(1.3); }
+
+        /* Ebene 3: Control Buttons */
+        .prime-controls-row { display: flex; justify-content: center; gap: 40px; padding-bottom: 30px; }
+        .prime-btn { 
+            width: 60px; height: 60px; border-radius: 30px; background: rgba(255,255,255,0.1); 
+            display: flex; align-items: center; justify-content: center; 
+            border: 3px solid transparent; transition: 0.2s;
         }
-        
+        .prime-btn.focused { border-color: white; background: rgba(255,255,255,0.3); transform: scale(1.15); box-shadow: 0 0 15px white; }
+
+        /* Ebene 4: Recommendations (2-zeilig, endlos) */
+        .prime-recs-wrapper { padding: 0 50px; }
+        .prime-recs-grid {
+            display: grid; grid-template-rows: 1fr 1fr; grid-auto-flow: column; gap: 15px;
+            overflow: hidden; padding: 10px; height: 260px;
+        }
+        .prime-rec-tile {
+            width: 220px; height: 120px; border-radius: 8px; background: #222; overflow: hidden;
+            position: relative; border: 4px solid transparent; transition: 0.2s;
+        }
+        .prime-rec-tile img { width: 100%; height: 100%; object-fit: cover; }
+        .prime-rec-title { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 5px; font-size: 14px; box-sizing: border-box; text-align: center; white-space: nowrap; overflow: hidden; }
+        .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 2; box-shadow: 0 5px 15px black; }
+
+        /* --- HAUPT GRID --- */
+        #smart-tv-ui { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; padding: 60px; box-sizing: border-box; grid-template-columns: repeat(3, 1fr); gap: 30px; transition: transform 0.2s, filter 0.4s, opacity 0.3s; overflow: visible; }
+        .grid-tile { background-color: #1e1e2e; border-radius: 12px; overflow: hidden; border: 6px solid transparent; transition: 0.1s; position: relative; height: 280px; display: block; }
+        .grid-tile.focused { border-color: #d0383e; transform: scale(1.05); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10; }
         .grid-tile .media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
         .grid-tile .video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
-        
-        .grid-tile .title-container { 
-            position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; 
-            overflow: hidden; text-align: center;
-        }
-
-        .grid-tile .title-container span {
-            display: inline-block; color: white; font-size: 22px; font-weight: bold; 
-            font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; 
-            will-change: transform; 
-        }
-
+        .grid-tile .title-container { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; overflow: hidden; text-align: center; }
+        .grid-tile .title-container span { display: inline-block; color: white; font-size: 22px; font-weight: bold; font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; will-change: transform; }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        
-        .grid-tile.focused.is-playing .title-container span { 
-            padding-left: 100%;
-            animation: marquee 8s linear infinite; 
-        }
+        .grid-tile.focused.is-playing .title-container span { padding-left: 100%; animation: marquee 8s linear infinite; }
 
-        /* --- NEU: LEFT MENU (Kategorien) & BOTTOM MENU (Seiten) --- */
-        #left-menu-container {
-            position: absolute; left: 0; top: 0; width: 60vw; height: 100vh;
-            z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            overflow: hidden; box-sizing: border-box;
-            transform: translateX(-100%); 
-            background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%);
-        }
-
-        #bottom-menu-container {
-            position: absolute; left: 0; bottom: 0; width: 100vw; height: 140px;
-            z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden; box-sizing: border-box;
-            transform: translateY(100%); 
-            background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
-        }
-
-        /* FIX: Die Track-Position ist jetzt absolut, was die Mathematik beim Scrollen wasserdicht macht! */
-        .menu-track-left { 
-            position: absolute; top: 0; left: 0; width: 100%;
-            display: flex; flex-direction: column; transition: transform 0.3s ease-out; 
-            padding: 0 40px; box-sizing: border-box; 
-        }
-        
+        /* --- MENÜ BEREICHE --- */
+        #left-menu-container { position: absolute; left: 0; top: 0; width: 60vw; height: 100vh; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); overflow: hidden; box-sizing: border-box; transform: translateX(-100%); background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%); }
+        #bottom-menu-container { position: absolute; left: 0; bottom: 0; width: 100vw; height: 140px; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: flex; align-items: center; justify-content: center; overflow: hidden; box-sizing: border-box; transform: translateY(100%); background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%); }
+        .menu-track-left { position: absolute; top: 0; left: 0; width: 100%; display: flex; flex-direction: column; transition: transform 0.3s ease-out; padding: 0 40px; box-sizing: border-box; }
         .menu-track-bottom { display: flex; justify-content: center; width: 100vw; }
+        .menu-item-left { color: #666; font-size: 32px; font-weight: bold; margin: 10px 0; padding: 15px 30px; border-radius: 12px; border: 3px solid transparent; white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4); width: max-content; }
+        .menu-item-left.focused { color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3); transform: scale(1.1); transform-origin: left center; box-shadow: 0 10px 20px rgba(0,0,0,0.6); }
+        .menu-item-bottom { color: #666; font-size: 26px; font-weight: bold; margin: 0 15px; padding: 12px 25px; border-radius: 12px; border: 3px solid transparent; white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4); }
+        .menu-item-bottom.focused { color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3); transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6); }
 
-        .menu-item-left {
-            color: #666; font-size: 32px; font-weight: bold; margin: 10px 0;
-            padding: 15px 30px; border-radius: 12px; border: 3px solid transparent;
-            white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4); width: max-content;
-        }
-
-        .menu-item-left.focused {
-            color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
-            transform: scale(1.1); transform-origin: left center; box-shadow: 0 10px 20px rgba(0,0,0,0.6);
-        }
-
-        .menu-item-bottom {
-            color: #666; font-size: 26px; font-weight: bold; margin: 0 15px;
-            padding: 12px 25px; border-radius: 12px; border: 3px solid transparent;
-            white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4);
-        }
-
-        .menu-item-bottom.focused {
-            color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
-            transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
-        }
-
-        /* --- LADE SPINNER --- */
-        #loading-spinner {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 200; display: none;
-        }
+        #loading-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 200; display: none; }
         .spinner { animation: rotate 2s linear infinite; width: 100px; height: 100px; }
         .spinner .path { stroke: #d0383e; stroke-linecap: round; animation: dash 1.5s ease-in-out infinite; }
-        
         @keyframes rotate { 100% { transform: rotate(360deg); } }
-        @keyframes dash {
-            0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
-            50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
-            100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
-        }
+        @keyframes dash { 0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; } 50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; } 100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; } }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    
-    <div id="loading-spinner">
-        <svg class="spinner" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-        </svg>
-    </div>
-
+    <div id="loading-spinner"><svg class="spinner" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></div>
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.1.4</h1>
+    <!-- ALTE UI (Default) -->
+    <h1 id="version-display">hawke297 player | v2.3.0</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
     <div id="title-ui"></div>
     <div id="progress-ui">
-        <div id="progress-info-container">
-            <div id="status-icon"></div>
-            <div id="progress-text">0:00 / 0:00</div>
-        </div>
-        <div id="progress-bar-bg">
-            <div id="markers-container"></div>
-            <div id="progress-bar-fill"></div>
-        </div>
+        <div id="progress-info-container"><div id="status-icon"></div><div id="progress-text">0:00 / 0:00</div></div>
+        <div id="progress-bar-bg"><div id="markers-container"></div><div id="progress-bar-fill"></div></div>
     </div>
+
+    <!-- NEUE UI (Prime Pro) -->
+    <div id="prime-osd-container">
+        <div class="prime-meta">
+            <div class="prime-title" id="prime-title">Wird geladen...</div>
+            <div class="prime-actors" id="prime-actors">Lade Darsteller...</div>
+            <div class="prime-tags" id="prime-tags"></div>
+        </div>
+        <div class="prime-progress-row">
+            <div class="prime-time" id="prime-time-current">0:00</div>
+            <div class="prime-bar-wrap" id="prime-row-0-col-0" data-row="0" data-col="0"><div class="prime-bar-fill" id="prime-bar-fill"></div></div>
+            <div class="prime-time" id="prime-time-total">0:00</div>
+        </div>
+        <div class="prime-controls-row">
+            <!-- Restart, Play, Fav, Subs -->
+            <div class="prime-btn" id="prime-row-1-col-0" data-row="1" data-col="0"><svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></div>
+            <div class="prime-btn" id="prime-row-1-col-1" data-row="1" data-col="1"><div id="prime-play-icon"></div></div>
+            <div class="prime-btn" id="prime-row-1-col-2" data-row="1" data-col="2"><div id="prime-fav-icon"></div></div>
+            <div class="prime-btn" id="prime-row-1-col-3" data-row="1" data-col="3"><svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14H4v-2h8v2zm8 0h-6v-2h6v2zm0-4H4v-2h16v2z"/></svg></div>
+        </div>
+        <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
+    </div>
+
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.1.4";
+        const PLAYER_VERSION = "2.3.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
-        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
-        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-        const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
-        const SVG_ERROR = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#ff3333"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="36" height="36" fill="white"><path d="M8 5v14l11-7z"/></svg>';
+        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="36" height="36" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        const SVG_FAV_OFF = '<svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
+        const SVG_FAV_ON = '<svg viewBox="0 0 24 24" width="30" height="30" fill="#d0383e"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 
         document.getElementById('status-icon').innerHTML = SVG_PLAY;
+        document.getElementById('prime-play-icon').innerHTML = SVG_PLAY;
+        document.getElementById('prime-fav-icon').innerHTML = SVG_FAV_OFF;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
@@ -216,7 +180,6 @@
 
         let timeUpdateInterval = null;
         let activeSenderId = null; 
-        let lastPlayerState = null;
         let uiTimeout = null; 
         let previewTimer = null; 
         
@@ -236,30 +199,13 @@
         };
 
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            const errCode = event.detailedErrorCode || "Unbekannt";
-            sendTelemetry("Haupt-Player Fehler Code: " + errCode);
-            showNotification("❌ Stream nicht erreichbar (Code " + errCode + ")", {position: "center", duration: 3000, bg_color: "rgba(220, 53, 69, 0.9)"});
-            
+            sendTelemetry("Haupt-Player Fehler Code: " + event.detailedErrorCode);
             loadingSpinner.style.display = "none";
             document.getElementById('cast-video').style.display = 'none';
             document.body.style.backgroundColor = "#0f0f15";
-            bgImageElement.removeAttribute('src');
-            bgImageElement.style.opacity = "0"; 
+            bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
             gridUi.style.display = 'grid';
         });
-        
-        function showNotification(text, config) {
-            const layer = document.getElementById('notification-layer');
-            const notif = document.createElement('div');
-            notif.className = 'notification-box';
-            notif.innerHTML = text;
-            notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
-            notif.style.color = config.text_color || "#ffffff";
-            if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
-            layer.appendChild(notif);
-            setTimeout(() => notif.style.opacity = "1", 50);
-            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
-        }
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return "0:00";
@@ -267,32 +213,10 @@
             return m + ":" + (s < 10 ? "0" : "") + s;
         }
 
-        function updateClock() {
-            let now = new Date(); let h = now.getHours(); let m = now.getMinutes();
-            document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-        }
-
-        function showCustomUI(keepOpen) {
-            document.getElementById('progress-ui').classList.add('ui-visible');
-            document.getElementById('clock-ui').classList.add('ui-visible');
-            document.getElementById('title-ui').classList.add('ui-visible');
-            updateClock();
-            if (uiTimeout) clearTimeout(uiTimeout);
-            if (!keepOpen) {
-                uiTimeout = setTimeout(() => {
-                    document.getElementById('progress-ui').classList.remove('ui-visible');
-                    document.getElementById('clock-ui').classList.remove('ui-visible');
-                    document.getElementById('title-ui').classList.remove('ui-visible');
-                }, 4000);
-            }
-        }
-
-        // --- FIX: Die neue, absolut perfekte Scrolling-Logik für das seitliche Menü! ---
         function updateLeftMenuVisuals(items, focusIndex) {
             const track = document.getElementById("left-menu-track");
             track.innerHTML = "";
             let focusEl = null;
-
             items.forEach((txt, idx) => {
                 let d = document.createElement('div');
                 d.className = 'menu-item-left' + (idx === focusIndex ? ' focused' : '');
@@ -300,7 +224,6 @@
                 track.appendChild(d);
                 if (idx === focusIndex) focusEl = d;
             });
-
             requestAnimationFrame(() => {
                 if (focusEl) {
                     const offset = focusEl.offsetTop + (focusEl.offsetHeight / 2);
@@ -326,55 +249,90 @@
 
             if (data.type === "PREPARE_VIDEO") {
                 playerManager.stop();
-                
+                if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
+                else document.body.classList.remove("preset-prime-pro");
+
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                document.getElementById('prime-osd-container').classList.remove('osd-visible');
                 
-                gridUi.style.display = 'none';
-                gridUi.style.filter = 'none';
-                
+                gridUi.style.display = 'none'; gridUi.style.filter = 'none';
                 document.body.style.backgroundColor = "#000000";
                 
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
-                
                 loadingSpinner.style.display = 'block';
                 
                 if (data.title) {
-                    let titleEl = document.getElementById('title-ui');
-                    titleEl.innerText = data.title;
-                    titleEl.classList.add('ui-visible');
+                    document.getElementById('title-ui').innerText = data.title;
+                    document.getElementById('title-ui').classList.add('ui-visible');
+                    document.getElementById('prime-title').innerText = data.title;
+                    document.getElementById('prime-actors').innerText = "Suche Darsteller...";
+                    document.getElementById('prime-tags').innerHTML = "";
+                    document.getElementById('prime-recs-grid').innerHTML = "";
                 }
-                
-                if (data.bg_image) {
-                    bgImageElement.src = data.bg_image;
-                    bgImageElement.style.opacity = "0.5"; 
-                }
+                if (data.bg_image) { bgImageElement.src = data.bg_image; bgImageElement.style.opacity = "0.5"; }
                 
                 if (previewTimer) clearTimeout(previewTimer);
-                document.querySelectorAll('video.video-layer').forEach(v => {
-                    v.pause(); v.removeAttribute('src'); v.load(); v.remove();
+                document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
+            }
+
+            else if (data.type === "UPDATE_METADATA") {
+                if (data.title) document.getElementById('prime-title').innerText = data.title;
+                document.getElementById('prime-actors').innerText = data.actors.length > 0 ? "Mit: " + data.actors.join(', ') : "Keine Darsteller gefunden";
+                
+                const tagsDiv = document.getElementById('prime-tags');
+                tagsDiv.innerHTML = "";
+                data.tags.forEach(t => {
+                    let d = document.createElement('div'); d.className = "tag-badge"; d.innerText = t; tagsDiv.appendChild(d);
                 });
+
+                const recsDiv = document.getElementById('prime-recs-grid');
+                recsDiv.innerHTML = "";
+                data.recs.forEach((rec, i) => {
+                    let row = (i % 2) + 2; let col = Math.floor(i / 2);
+                    let d = document.createElement('div');
+                    d.className = "prime-rec-tile";
+                    d.id = `prime-row-${row}-col-${col}`;
+                    d.dataset.row = row; d.dataset.col = col;
+                    
+                    let img = document.createElement('img'); img.src = rec.image || rec.video_preview;
+                    let title = document.createElement('div'); title.className = "prime-rec-title"; title.innerText = rec.title;
+                    
+                    d.appendChild(img); d.appendChild(title);
+                    recsDiv.appendChild(d);
+                });
+            }
+
+            else if (data.type === "UPDATE_OSD") {
+                const osd = document.getElementById('prime-osd-container');
+                if (data.visible) osd.classList.add('osd-visible');
+                else osd.classList.remove('osd-visible');
+
+                document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
+                document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
+
+                // Focus Update
+                document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
+                const target = document.getElementById(`prime-row-${data.row}-col-${data.col}`);
+                if (target) {
+                    target.classList.add('focused');
+                    if (data.row >= 2) {
+                        target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+                    }
+                }
             }
 
             else if (data.type === "SHOW_LOADING") {
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                
                 document.body.style.backgroundColor = "#0f0f15";
-                
-                gridUi.style.filter = "brightness(0.3) blur(6px)";
-                gridUi.style.opacity = "1";
+                gridUi.style.filter = "brightness(0.3) blur(6px)"; gridUi.style.opacity = "1";
                 loadingSpinner.style.display = "block";
                 
                 if (previewTimer) clearTimeout(previewTimer);
-                document.querySelectorAll('video.video-layer').forEach(v => {
-                    v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-                });
-                document.querySelectorAll('.grid-tile').forEach(tile => {
-                    tile.classList.remove('is-playing');
-                    tile.classList.remove('focused');
-                });
+                document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
+                document.querySelectorAll('.grid-tile').forEach(tile => { tile.classList.remove('is-playing', 'focused'); });
             }
 
             else if (data.type === "LEFT_MENU" || data.type === "BOTTOM_MENU") {
@@ -383,15 +341,8 @@
 
                 if (data.action === "show" || data.action === "update") {
                     if (previewTimer) clearTimeout(previewTimer);
-                    
-                    document.querySelectorAll('video.video-layer').forEach(v => {
-                        v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-                    });
-                    
-                    document.querySelectorAll('.grid-tile').forEach(tile => {
-                        tile.classList.remove('is-playing');
-                        tile.classList.remove('focused');
-                    });
+                    document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
+                    document.querySelectorAll('.grid-tile').forEach(tile => { tile.classList.remove('is-playing', 'focused'); });
 
                     container.style.transform = isLeft ? "translateX(0)" : "translateY(0)";
                     gridUi.style.filter = "brightness(0.3) blur(6px)"; 
@@ -407,34 +358,25 @@
 
             else if (data.type === "UPDATE_GRID_WINDOW") {
                 playerManager.stop();
-                if (timeUpdateInterval) {
-                    clearInterval(timeUpdateInterval);
-                    timeUpdateInterval = null;
-                }
+                if (timeUpdateInterval) { clearInterval(timeUpdateInterval); timeUpdateInterval = null; }
 
                 document.body.style.backgroundColor = "#0f0f15";
-                bgImageElement.removeAttribute('src');
-                bgImageElement.style.opacity = "0"; 
+                bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
 
                 document.getElementById('cast-video').style.display = 'none';
-                document.getElementById('version-display').style.display = 'none';
+                document.getElementById('prime-osd-container').classList.remove('osd-visible');
                 
                 loadingSpinner.style.display = "none";
                 gridUi.style.filter = "none";
-                
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
                 
                 if (previewTimer) clearTimeout(previewTimer);
-                
                 let currentTiles = gridUi.children;
                 for(let i=0; i<data.items.length; i++) {
-                    let item = data.items[i];
-                    let tile = currentTiles[i];
-                    
+                    let item = data.items[i]; let tile = currentTiles[i];
                     if (!tile) {
-                        tile = document.createElement('div');
-                        tile.className = 'grid-tile';
+                        tile = document.createElement('div'); tile.className = 'grid-tile';
                         tile.innerHTML = `<div class="media-container"></div><div class="title-container"><span></span></div>`;
                         gridUi.appendChild(tile);
                     }
@@ -444,35 +386,21 @@
                     tile.classList.remove('is-playing'); 
                     
                     let mediaContainer = tile.querySelector('.media-container');
-                    
-                    let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
-                    existingVideos.forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); });
+                    mediaContainer.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
 
-                    let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
+                    let imageSrc = item.image || item.video_preview;
                     let imgLayer = mediaContainer.querySelector('img.media-layer');
                     if (!imgLayer) {
-                        imgLayer = document.createElement('img');
-                        imgLayer.className = 'media-layer';
-                        mediaContainer.appendChild(imgLayer);
+                        imgLayer = document.createElement('img'); imgLayer.className = 'media-layer'; mediaContainer.appendChild(imgLayer);
                     }
                     if (imgLayer.src !== imageSrc) { imgLayer.src = imageSrc; }
                     
-                    if (isFocused && item.video_preview && item.video_preview !== "") {
+                    if (isFocused && item.video_preview) {
                         previewTimer = setTimeout(() => {
-                            try {
-                                let v = document.createElement('video');
-                                v.className = 'video-layer';
-                                v.src = item.video_preview;
-                                v.loop = true; v.muted = true; v.playsInline = true;
-                                v.style.visibility = "hidden"; 
-                                
-                                v.onerror = function() { sendTelemetry("Vorschau-Player abgestürzt"); };
-                                v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
-                                
-                                mediaContainer.appendChild(v);
-                                let playPromise = v.play();
-                                if (playPromise !== undefined) playPromise.catch(e => {});
-                            } catch(err) { sendTelemetry("Exception Vorschau"); }
+                            let v = document.createElement('video'); v.className = 'video-layer'; v.src = item.video_preview; v.loop = true; v.muted = true; v.style.visibility = "hidden"; 
+                            v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
+                            mediaContainer.appendChild(v);
+                            let p = v.play(); if (p !== undefined) p.catch(e => {});
                         }, 700); 
                     } else if (isFocused) {
                         previewTimer = setTimeout(() => { tile.classList.add('is-playing'); }, 700);
@@ -481,97 +409,71 @@
                     let titleSpan = tile.querySelector('.title-container span');
                     if(titleSpan.innerText !== item.title) { titleSpan.innerText = item.title; }
                 }
-                
                 while(gridUi.children.length > data.items.length) { gridUi.removeChild(gridUi.lastChild); }
             }
             
             else if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
-            else if (data.type === "NOTIFY") {
-                showNotification(data.text, data.config);
-            }
             else if (data.type === "CONTROL") {
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
                 else if (data.action === "SEEK") playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                else if (data.action === "SHOW_PROGRESS") showCustomUI(false);
+                else if (data.action === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
+                    document.getElementById('progress-ui').classList.add('ui-visible');
+                    document.getElementById('clock-ui').classList.add('ui-visible');
+                    document.getElementById('title-ui').classList.add('ui-visible');
+                    updateClock();
+                    if (uiTimeout) clearTimeout(uiTimeout);
+                    uiTimeout = setTimeout(() => {
+                        document.getElementById('progress-ui').classList.remove('ui-visible');
+                        document.getElementById('clock-ui').classList.remove('ui-visible');
+                        document.getElementById('title-ui').classList.remove('ui-visible');
+                    }, 4000);
+                }
             }
-            else if (data.type === "STOP_APP") {
-                context.stop(); 
-            }
+            else if (data.type === "STOP_APP") { context.stop(); }
+            
             else if (data.type === "LOAD_VIDEO") {
                 loadingSpinner.style.display = "none";
+                if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
                 
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                
-                document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('smart-tv-ui').style.filter = 'none'; 
-                
+                gridUi.style.display = 'none'; gridUi.style.filter = 'none'; 
                 document.body.style.backgroundColor = "#000000";
                 
                 document.getElementById('cast-video').style.display = 'block';
-                document.getElementById('version-display').style.display = 'none';
-                
                 if (previewTimer) clearTimeout(previewTimer);
-                
-                if (data.title) {
-                    let titleEl = document.getElementById('title-ui');
-                    titleEl.innerText = data.title;
-                    titleEl.classList.remove('ui-visible'); 
-                }
-                if (data.bg_image) {
-                    bgImageElement.src = data.bg_image;
-                }
                 
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
-                let metadata = new cast.framework.messages.GenericMediaMetadata();
-                metadata.title = data.title || "Custom Stream";
-                mediaInfo.metadata = metadata;
-                request.media = mediaInfo;
-                request.autoplay = true;
-                
-                if (data.start_time) {
-                    request.currentTime = data.start_time;
-                }
+                mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
+                mediaInfo.metadata.title = data.title || "Custom Stream";
+                request.media = mediaInfo; request.autoplay = true;
+                if (data.start_time) request.currentTime = data.start_time;
 
                 playerManager.load(request);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
                     try {
-                        let currentState = playerManager.getPlayerState();
-                        
-                        if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
-                            bgImageElement.style.opacity = "1.0";
-                        } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
-                            bgImageElement.style.opacity = "0.15";
-                        }
-
-                        if (currentState !== lastPlayerState) {
-                            if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
-                                if (currentState === 'PAUSED') { document.getElementById('status-icon').innerHTML = SVG_PAUSE; showCustomUI(false); }
-                                else if (currentState === 'BUFFERING') { document.getElementById('status-icon').innerHTML = SVG_BUFFER; showCustomUI(true); }
-                                else if (currentState === 'PLAYING') { document.getElementById('status-icon').innerHTML = SVG_PLAY; showCustomUI(false); }
-                            }
-                            lastPlayerState = currentState;
-                        }
-
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
                         
                         document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                         let percent = (dur > 0) ? (cur / dur * 100) : 0;
                         document.getElementById('progress-bar-fill').style.width = percent + '%';
-                        updateClock(); 
                         
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                            type: "TIME_UPDATE", currentTime: cur, duration: dur
-                        });
+                        // OSD Updates for Prime UI
+                        document.getElementById('prime-time-current').innerText = formatTime(cur);
+                        document.getElementById('prime-time-total').innerText = formatTime(dur);
+                        document.getElementById('prime-bar-fill').style.width = percent + '%';
+
+                        updateClock(); 
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
                     } catch (e) {}
                 }, 1000); 
             }
