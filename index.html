@@ -61,8 +61,8 @@
             z-index: 50; display: none; background-color: #0f0f15;
             padding: 60px; box-sizing: border-box;
             grid-template-columns: repeat(3, 1fr); gap: 30px;
-            /* FIX: Sanftes opacity-Fading, KEIN filter mehr! */
-            transition: transform 0.2s ease-out, opacity 0.3s ease-out; 
+            /* Filter Transition hinzugefügt für das weiche Einblenden des Blurs */
+            transition: transform 0.2s ease-out, filter 0.4s ease-out; 
             overflow: visible;
         }
         
@@ -95,7 +95,7 @@
         .grid-tile.focused.is-playing .title-container span { animation: marquee 8s linear infinite; }
 
 
-        /* --- NEU: TOP & BOTTOM MENUS --- */
+        /* --- MENÜ BEREICHE --- */
         #top-menu-container, #bottom-menu-container {
             position: absolute; left: 0; width: 100vw; height: 140px;
             z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
@@ -108,12 +108,18 @@
         }
 
         #bottom-menu-container {
-            bottom: 0; transform: translateY(100%); justify-content: center;
+            bottom: 0; transform: translateY(100%); 
             background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
         }
 
-        .menu-track {
+        /* Top Track (Kategorien) - Rutscht hin und her */
+        .menu-track-top {
             display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw;
+        }
+
+        /* Bottom Track (Seiten) - Starr zentriert! */
+        .menu-track-bottom {
+            display: flex; justify-content: center; width: 100vw;
         }
 
         .menu-item {
@@ -132,10 +138,10 @@
     <div id="smart-tv-ui"></div>
     
     <!-- Menü Layer -->
-    <div id="top-menu-container"><div class="menu-track" id="top-menu-track"></div></div>
-    <div id="bottom-menu-container"><div class="menu-track" id="bottom-menu-track"></div></div>
+    <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
+    <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.1.1</h1>
+    <h1 id="version-display">hawke297 player | v2.1.2</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -153,7 +159,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.1.1";
+        const PLAYER_VERSION = "2.1.2";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -236,9 +242,9 @@
             }
         }
 
-        // --- HILFSFUNKTION FÜR MENÜ SCROLLING ---
-        function updateMenuVisuals(trackId, items, focusIndex) {
-            const track = document.getElementById(trackId);
+        // --- HILFSFUNKTION FÜR TOP MENÜ (Slider) ---
+        function updateTopMenuVisuals(items, focusIndex) {
+            const track = document.getElementById("top-menu-track");
             track.innerHTML = "";
             let focusEl = null;
 
@@ -250,7 +256,6 @@
                 if (idx === focusIndex) focusEl = d;
             });
 
-            // FIX: requestAnimationFrame schützt die TV GPU vor Layout-Thrashing
             requestAnimationFrame(() => {
                 if (focusEl) {
                     const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
@@ -259,32 +264,53 @@
             });
         }
 
+        // --- HILFSFUNKTION FÜR BOTTOM MENÜ (Starr Zentriert) ---
+        function updateBottomMenuVisuals(items, focusIndex) {
+            const track = document.getElementById("bottom-menu-track");
+            track.innerHTML = "";
+            items.forEach((txt, idx) => {
+                let d = document.createElement('div');
+                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
+                d.innerText = txt;
+                track.appendChild(d);
+            });
+            // Kein Transform-Verschieben nötig, da Flexbox (justify-content: center) das macht!
+        }
+
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- MENÜ STEUERUNG ---
-            if (data.type === "TOP_MENU") {
-                const container = document.getElementById('top-menu-container');
+            // --- MENÜ STEUERUNG MIT "FREEZE THE WORLD" ---
+            if (data.type === "TOP_MENU" || data.type === "BOTTOM_MENU") {
+                const isTop = data.type === "TOP_MENU";
+                const container = document.getElementById(isTop ? 'top-menu-container' : 'bottom-menu-container');
+
                 if (data.action === "show" || data.action === "update") {
+                    
+                    // 1. FREEZE: Alles stoppen
+                    if (previewTimer) clearTimeout(previewTimer);
+                    
+                    document.querySelectorAll('video.video-layer').forEach(v => {
+                        v.pause(); v.removeAttribute('src'); v.load(); v.remove();
+                    });
+                    
+                    document.querySelectorAll('.grid-tile').forEach(tile => {
+                        tile.classList.remove('is-playing');
+                        tile.classList.remove('focused');
+                    });
+
+                    // 2. Menü abdunkeln MIT dem schönen Blur-Effekt!
                     container.style.transform = "translateY(0)";
-                    gridUi.style.opacity = "0.15"; // FIX: Opacity statt Blur!
-                    updateMenuVisuals("top-menu-track", data.items, data.focus);
+                    gridUi.style.filter = "brightness(0.3) blur(6px)"; 
+                    
+                    // 3. Menü zeichnen
+                    if (isTop) updateTopMenuVisuals(data.items, data.focus);
+                    else updateBottomMenuVisuals(data.items, data.focus);
+
                 } else if (data.action === "hide") {
-                    container.style.transform = "translateY(-100%)";
-                    gridUi.style.opacity = "1";
-                }
-            }
-            
-            else if (data.type === "BOTTOM_MENU") {
-                const container = document.getElementById('bottom-menu-container');
-                if (data.action === "show" || data.action === "update") {
-                    container.style.transform = "translateY(0)";
-                    gridUi.style.opacity = "0.15"; // FIX: Opacity statt Blur!
-                    updateMenuVisuals("bottom-menu-track", data.items, data.focus);
-                } else if (data.action === "hide") {
-                    container.style.transform = "translateY(100%)";
-                    gridUi.style.opacity = "1";
+                    container.style.transform = isTop ? "translateY(-100%)" : "translateY(100%)";
+                    gridUi.style.filter = "none";
                 }
             }
 
@@ -372,12 +398,11 @@
                 context.stop(); 
             }
             else if (data.type === "LOAD_VIDEO") {
-                // Menüs hart verstecken, falls offen
                 document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 
                 document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('smart-tv-ui').style.opacity = '1'; // FIX: Opacity zurücksetzen!
+                document.getElementById('smart-tv-ui').style.filter = 'none'; // Verhindert Bug beim Beenden des Videos
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
