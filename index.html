@@ -1,511 +1,628 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>hawke297 Custom Player</title>
-    <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <style>
-        :root {
-            --clock-display: block; --clock-color: #eeeeee; --progress-color: #e50914;
-            --ui-bg-color: transparent; --ui-border: none; 
-            --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
-            --ui-box-shadow: none; --ui-bottom-offset: 0px; --ui-side-margin: 0px; 
-            --ui-border-radius: 0px; --title-display: block;
-        }
+import threading
+import json
+import os
+import time
+import requests
+from io import BytesIO
+from PIL import Image
+import customtkinter as ctk
+from tkinter import PanedWindow, HORIZONTAL, VERTICAL
 
-        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
-        #bg-image { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out; }
-        #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
-        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
+from cast_engine import CastEngine
+from scraper import WebScraper
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+CONFIG_FILE = "app_config.json"
+
+class FavoritesManager:
+    def __init__(self):
+        self.filepath = "favorites.json"
+        self.favorites = self._load()
+
+    def _load(self):
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r", encoding="utf-8") as f: return json.load(f)
+            except: return []
+        return []
+
+    def _save(self):
+        try:
+            with open(self.filepath, "w", encoding="utf-8") as f: json.dump(self.favorites, f)
+        except: pass
+
+    def toggle(self, video_item):
+        for idx, fav in enumerate(self.favorites):
+            if fav['url'] == video_item['url']:
+                del self.favorites[idx]
+                self._save()
+                return False 
         
-        #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
-        .notification-box {
-            position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; 
-            box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8);
-            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold;
-        }
+        self.favorites.insert(0, video_item) 
+        self._save()
+        return True
+
+    def get_all(self):
+        return self.favorites
+
+
+class VideoMemoryManager:
+    def __init__(self):
+        self.filepath = "resume_data.json"
+        self.memory = self._load()
+        self.last_save_time = 0
+
+    def _load(self):
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r") as f: return json.load(f)
+            except: return {}
+        return {}
+
+    def _save(self):
+        try:
+            with open(self.filepath, "w") as f: json.dump(self.memory, f)
+        except: pass
+
+    def update_position(self, url, position_sec):
+        if position_sec > 15:
+            self.memory[url] = int(position_sec)
+            current_time = time.time()
+            if current_time - self.last_save_time > 5:
+                self._save()
+                self.last_save_time = current_time
+
+    def force_save(self):
+        self._save()
+
+    def get_position(self, url):
+        return self.memory.get(url, 0)
+
+
+class StreamViewerApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Smart TV Server Control Center | v2.2.0")
         
-        #clock-ui {
-            position: absolute; top: 30px; left: 30px; 
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            color: var(--clock-color); padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
-            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
-            display: var(--clock-display);
-        }
-
-        #title-ui {
-            position: absolute; top: 30px; left: 50%; transform: translateX(-50%); 
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
-            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
-            display: var(--title-display);
-        }
-
-        #progress-ui {
-            position: absolute; bottom: var(--ui-bottom-offset); left: var(--ui-side-margin); right: var(--ui-side-margin);
-            border-radius: var(--ui-border-radius); background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
-            padding: 15px 20px; z-index: 9998; opacity: 0; transition: all 0.3s ease-in-out;
-        }
-        .ui-visible { opacity: 1 !important; }
+        self._load_window_geometry()
+        self.protocol("WM_DELETE_WINDOW", self._on_window_close)
         
-        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
-        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
-        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
-        #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
-        .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
-
-        /* --- DAS HAUPT GRID --- */
-        #smart-tv-ui {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 50; display: none; background-color: #0f0f15;
-            padding: 60px; box-sizing: border-box;
-            grid-template-columns: repeat(3, 1fr); gap: 30px;
-            transition: transform 0.2s ease-out, filter 0.4s ease-out, opacity 0.3s ease-out; 
-            overflow: visible;
-        }
+        self.scraper = WebScraper()
+        self.memory = VideoMemoryManager()
+        self.fav_manager = FavoritesManager() 
         
-        .grid-tile {
-            background-color: #1e1e2e; border-radius: 12px; overflow: hidden;
-            border: 6px solid transparent; transition: border-color 0.1s, transform 0.1s;
-            position: relative; height: 280px; display: block;
-        }
+        self.cast_engine = CastEngine(
+            key_cb=self._on_tv_key, 
+            ready_cb=self._on_tv_ready, 
+            time_cb=self._on_time_update,
+            kill_cb=self._on_tv_killed_app,
+            log_cb=self._log
+        )
         
-        .grid-tile.focused {
-            border-color: #d0383e; transform: scale(1.05);
-            box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
-        }
+        self.all_items = []
+        self.filtered_items = []
         
-        .grid-tile .media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        .grid-tile .video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
+        self.current_focus_index = 0
+        self.columns = 3 
+        self.visible_rows = 2
+        self.camera_top_row = 0 
         
-        .grid-tile .title-container { 
-            position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; 
-            overflow: hidden; text-align: center;
-        }
-
-        .grid-tile .title-container span {
-            display: inline-block; color: white; font-size: 22px; font-weight: bold; 
-            font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; 
-        }
-
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        .grid-tile.focused.is-playing .title-container span { animation: marquee 8s linear infinite; }
-
-        /* --- MENÜ BEREICHE --- */
-        #top-menu-container, #bottom-menu-container {
-            position: absolute; left: 0; width: 100vw; height: 140px;
-            z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            display: flex; align-items: center; overflow: hidden; box-sizing: border-box;
-        }
-
-        #top-menu-container {
-            top: 0; transform: translateY(-100%);
-            background: linear-gradient(to bottom, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
-        }
-
-        #bottom-menu-container {
-            bottom: 0; transform: translateY(100%); 
-            background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
-        }
-
-        .menu-track-top { display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw; }
-        .menu-track-bottom { display: flex; justify-content: center; width: 100vw; }
-
-        .menu-item {
-            color: #666; font-size: 26px; font-weight: bold; margin: 0 15px;
-            padding: 12px 25px; border-radius: 12px; border: 3px solid transparent;
-            white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4);
-        }
-
-        .menu-item.focused {
-            color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
-            transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
-        }
-
-        /* --- NEU: LADE SPINNER --- */
-        #loading-spinner {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 200; display: none;
-        }
-        .spinner { animation: rotate 2s linear infinite; width: 100px; height: 100px; }
-        .spinner .path { stroke: #d0383e; stroke-linecap: round; animation: dash 1.5s ease-in-out infinite; }
+        self.tv_state = "GRID" 
+        self.active_video_url = None
         
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-        @keyframes dash {
-            0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
-            50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
-            100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
-        }
-    </style>
-</head>
-<body>
-    <div id="smart-tv-ui"></div>
-    
-    <!-- Lade Spinner Overlay -->
-    <div id="loading-spinner">
-        <svg class="spinner" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-        </svg>
-    </div>
-
-    <!-- Menü Layer -->
-    <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
-    <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
-
-    <h1 id="version-display">hawke297 player | v2.2.0</h1>
-    <img id="bg-image" />
-    <div id="notification-layer"></div>
-    <div id="clock-ui">00:00</div>
-    <div id="title-ui"></div>
-    <div id="progress-ui">
-        <div id="progress-info-container">
-            <div id="status-icon"></div>
-            <div id="progress-text">0:00 / 0:00</div>
-        </div>
-        <div id="progress-bar-bg">
-            <div id="markers-container"></div>
-            <div id="progress-bar-fill"></div>
-        </div>
-    </div>
-    <video id="cast-video"></video>
-
-    <script>
-        const PLAYER_VERSION = "2.2.0";
-        document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
-
-        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
-        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-        const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
-        const SVG_ERROR = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#ff3333"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
-
-        document.getElementById('status-icon').innerHTML = SVG_PLAY;
-
-        const context = cast.framework.CastReceiverContext.getInstance();
-        const playerManager = context.getPlayerManager();
-        const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
-
-        playerManager.setMediaElement(document.getElementById('cast-video'));
-        const options = new cast.framework.CastReceiverOptions();
-        options.customNamespaces = {};
-        options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
-        options.disableIdleTimeout = true; 
-
-        let timeUpdateInterval = null;
-        let activeSenderId = null; 
-        let lastPlayerState = null;
-        let uiTimeout = null; 
-        let previewTimer = null; 
+        self.top_menu_index = 0
+        self.bottom_menu_index = 1 
         
-        const bgImageElement = document.getElementById('bg-image');
-        const gridUi = document.getElementById('smart-tv-ui');
-        const loadingSpinner = document.getElementById('loading-spinner');
+        self.current_category_name = "Startseite"
+        self.current_base_url = "https://xhamster.com/" 
+        self.current_page = 1
+        self.max_pages = 27641
 
-        function sendTelemetry(msg) {
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg }); } catch(e) {}
-            }
-        }
+        self.list_generation = 0
 
-        window.onerror = function(message, source, lineno, colno, error) {
-            sendTelemetry("TV JS-Crash: " + message + " (Zeile " + lineno + ")");
-            return true;
-        };
+        self.categories = [
+            {"name": "⭐ Favoriten", "url": "FAVORITES"},
+            {"name": "Trending Startseite", "url": ""},
+            {"name": "German", "url": "categories/german"},
+            {"name": "4K Porn", "url": "4k?formatFrozen=1"},
+            {"name": "HD Videos", "url": "hd?formatFrozen=1"},
+            {"name": "VR Porn", "url": "vr?formatFrozen=1"},
+            {"name": "The Handy", "url": "categories/the-handy"},
+            {"name": "18 Year Old", "url": "categories/18-year-old"},
+            {"name": "Amateur", "url": "categories/amateur"},
+            {"name": "Anal", "url": "categories/anal"},
+            {"name": "Babe", "url": "categories/babe"},
+            {"name": "BBW", "url": "categories/bbw"},
+            {"name": "Big Ass", "url": "categories/big-ass"},
+            {"name": "Big Tits", "url": "categories/big-tits"},
+            {"name": "Blonde", "url": "categories/blonde"},
+            {"name": "Blowjob", "url": "categories/blowjob"},
+            {"name": "Creampie", "url": "categories/creampie"},
+            {"name": "Doggy Style", "url": "categories/doggy-style"},
+            {"name": "Lesbian", "url": "categories/lesbian"},
+            {"name": "MILF", "url": "categories/milf"},
+            {"name": "Teen", "url": "categories/teen"},
+        ]
 
-        playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            sendTelemetry("Haupt-Player Fehler: " + JSON.stringify(event));
-        });
+        self._build_modular_ui()
+        self.after(1500, self.start_manual_scrape)
+
+    def _load_window_geometry(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    config = json.load(f)
+                    geom = config.get("geometry", "1400x800+100+100")
+                    self.geometry(geom)
+            except: self.geometry("1400x800")
+        else: self.geometry("1400x800")
+
+    def _save_window_geometry(self):
+        try:
+            config = {"geometry": self.geometry()}
+            with open(CONFIG_FILE, "w") as f: json.dump(config, f)
+        except: pass
+
+    def _build_modular_ui(self):
+        self.main_pane = PanedWindow(self, orient=HORIZONTAL, bg="#1a1a24", bd=0, sashwidth=4, sashpad=2)
+        self.main_pane.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self.left_frame = ctk.CTkFrame(self.main_pane, fg_color="#14141e")
+        self.main_pane.add(self.left_frame, minsize=200)
+        self.left_frame.grid_rowconfigure(1, weight=1)
+        self.left_frame.grid_columnconfigure(0, weight=1)
         
-        function showNotification(text, config) {
-            const layer = document.getElementById('notification-layer');
-            const notif = document.createElement('div');
-            notif.className = 'notification-box';
-            notif.innerHTML = text;
-            notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
-            notif.style.color = config.text_color || "#ffffff";
-            if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
-            layer.appendChild(notif);
-            setTimeout(() => notif.style.opacity = "1", 50);
-            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
-        }
+        ctk.CTkLabel(self.left_frame, text="Kategorien", font=("Helvetica", 16, "bold")).grid(row=0, column=0, pady=10)
+        self.cat_scroll = ctk.CTkScrollableFrame(self.left_frame, fg_color="transparent")
+        self.cat_scroll.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        
+        for cat in self.categories:
+            btn = ctk.CTkButton(
+                self.cat_scroll, text=cat["name"], 
+                fg_color="#1f1f2e" if cat["url"] != "FAVORITES" else "#2d2013", 
+                hover_color="#323246", anchor="w",
+                command=lambda u=cat["url"], n=cat["name"]: self._load_category(u, n)
+            )
+            btn.pack(fill="x", padx=2, pady=2)
 
-        function formatTime(seconds) {
-            if (!seconds || isNaN(seconds)) return "0:00";
-            let m = Math.floor(seconds / 60); let s = Math.floor(seconds % 60);
-            return m + ":" + (s < 10 ? "0" : "") + s;
-        }
+        self.middle_frame = ctk.CTkFrame(self.main_pane, fg_color="#14141e")
+        self.main_pane.add(self.middle_frame, minsize=500) 
+        self.middle_frame.grid_rowconfigure(2, weight=1)
+        self.middle_frame.grid_columnconfigure(0, weight=1)
+        
+        self.lbl_status_cat = ctk.CTkLabel(self.middle_frame, text=f"Aktuell: {self.current_category_name} (Seite {self.current_page})", font=("Helvetica", 14, "bold"), text_color="#cba6f7")
+        self.lbl_status_cat.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        
+        self.lbl_list_status = ctk.CTkLabel(self.middle_frame, text="Bereit.", text_color="#f9e2af")
+        self.lbl_list_status.grid(row=1, column=0, padx=10, pady=0, sticky="w")
+        
+        self.video_list_scroll = ctk.CTkScrollableFrame(self.middle_frame, fg_color="#1a1a24")
+        self.video_list_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
 
-        function updateClock() {
-            let now = new Date(); let h = now.getHours(); let m = now.getMinutes();
-            document.getElementById('clock-ui').innerText = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-        }
+        self.right_frame = ctk.CTkFrame(self.main_pane, fg_color="transparent")
+        self.main_pane.add(self.right_frame, minsize=350)
+        
+        self.right_pane = PanedWindow(self.right_frame, orient=VERTICAL, bg="#1a1a24", bd=0, sashwidth=4)
+        self.right_pane.pack(fill="both", expand=True)
 
-        function showCustomUI(keepOpen) {
-            document.getElementById('progress-ui').classList.add('ui-visible');
-            document.getElementById('clock-ui').classList.add('ui-visible');
-            document.getElementById('title-ui').classList.add('ui-visible');
-            updateClock();
-            if (uiTimeout) clearTimeout(uiTimeout);
-            if (!keepOpen) {
-                uiTimeout = setTimeout(() => {
-                    document.getElementById('progress-ui').classList.remove('ui-visible');
-                    document.getElementById('clock-ui').classList.remove('ui-visible');
-                    document.getElementById('title-ui').classList.remove('ui-visible');
-                }, 4000);
-            }
-        }
+        self.top_control_frame = ctk.CTkFrame(self.right_pane, fg_color="#14141e")
+        self.right_pane.add(self.top_control_frame, minsize=200)
+        
+        cast_box = ctk.CTkFrame(self.top_control_frame, fg_color="transparent")
+        cast_box.pack(fill="x", padx=10, pady=10)
+        self.btn_cast = ctk.CTkButton(cast_box, text="Chromecast wählen", command=self.search_cast)
+        self.btn_cast.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.btn_stop = ctk.CTkButton(cast_box, text="Cast Trennen", command=self.stop_cast, fg_color="#e50914", hover_color="#b20710")
+        self.btn_stop.pack(side="left", fill="x", expand=True, padx=(5, 0))
 
-        function updateTopMenuVisuals(items, focusIndex) {
-            const track = document.getElementById("top-menu-track");
-            track.innerHTML = "";
-            let focusEl = null;
+        search_box = ctk.CTkFrame(self.top_control_frame, fg_color="transparent")
+        search_box.pack(fill="x", padx=10, pady=(0, 10))
+        self.search_entry = ctk.CTkEntry(search_box, placeholder_text="Live Filter (TV Grid)...")
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.search_entry.bind("<KeyRelease>", lambda e: self._apply_filter())
+        
+        self.btn_scrape = ctk.CTkButton(self.top_control_frame, text="▶ Analyse starten", command=self.start_manual_scrape, fg_color="#2d3748")
+        self.btn_scrape.pack(fill="x", padx=10, pady=5)
+        
+        page_box = ctk.CTkFrame(self.top_control_frame, fg_color="transparent")
+        page_box.pack(fill="x", padx=10, pady=10)
+        self.btn_prev_page = ctk.CTkButton(page_box, text="◀ Zurück", width=80, command=lambda: self._change_page(-1))
+        self.btn_prev_page.pack(side="left", padx=(0, 5))
+        self.lbl_page_info = ctk.CTkLabel(page_box, text=f"Seite {self.current_page}")
+        self.lbl_page_info.pack(side="left", expand=True)
+        self.btn_next_page = ctk.CTkButton(page_box, text="Weiter ▶", width=80, command=lambda: self._change_page(1))
+        self.btn_next_page.pack(side="right", padx=(5, 0))
 
-            items.forEach((txt, idx) => {
-                let d = document.createElement('div');
-                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
-                d.innerText = txt;
-                track.appendChild(d);
-                if (idx === focusIndex) focusEl = d;
-            });
+        self.bottom_log_frame = ctk.CTkFrame(self.right_pane, fg_color="#14141e")
+        self.right_pane.add(self.bottom_log_frame, minsize=150)
+        self.bottom_log_frame.grid_rowconfigure(1, weight=1)
+        self.bottom_log_frame.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(self.bottom_log_frame, text="System Log", font=("Helvetica", 12, "bold")).grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
+        self.system_log = ctk.CTkTextbox(self.bottom_log_frame, fg_color="#1a1a24")
+        self.system_log.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+        self._log("System gestartet. Warte auf Auto-Analyse...")
 
-            requestAnimationFrame(() => {
-                if (focusEl) {
-                    const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
-                    track.style.transform = `translateX(calc(50vw - ${offset}px))`;
-                }
-            });
-        }
+    def _log(self, text):
+        self.system_log.insert("end", f"> {text}\n")
+        self.system_log.see("end")
 
-        function updateBottomMenuVisuals(items, focusIndex) {
-            const track = document.getElementById("bottom-menu-track");
-            track.innerHTML = "";
-            items.forEach((txt, idx) => {
-                let d = document.createElement('div');
-                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
-                d.innerText = txt;
-                track.appendChild(d);
-            });
-        }
+    def _update_status_labels(self):
+        self.lbl_status_cat.configure(text=f"Aktuell: {self.current_category_name} (Seite {self.current_page})")
+        self.lbl_page_info.configure(text=f"Seite {self.current_page}")
 
-        context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
-            const data = customEvent.data;
-            activeSenderId = customEvent.senderId; 
+    def _load_category(self, url_suffix, name):
+        if url_suffix == "FAVORITES":
+            self.current_base_url = "FAVORITES"
+            self.current_category_name = name
+            self.current_page = 1
+            self._update_status_labels()
+            self._process_fetched_items(self.fav_manager.get_all())
+            return
 
-            // --- NEU: LADE BILDSCHIRM ---
-            if (data.type === "SHOW_LOADING") {
-                // Menüs verstecken
-                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
-                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                
-                // Spinner zeigen und Grid Blurren
-                gridUi.style.filter = "brightness(0.3) blur(6px)";
-                gridUi.style.opacity = "1";
-                loadingSpinner.style.display = "block";
-                
-                // Laufende Videos töten, um Bandbreite frei zu machen
-                if (previewTimer) clearTimeout(previewTimer);
-                document.querySelectorAll('video.video-layer').forEach(v => {
-                    v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-                });
-                document.querySelectorAll('.grid-tile').forEach(tile => {
-                    tile.classList.remove('is-playing');
-                    tile.classList.remove('focused');
-                });
-            }
-
-            else if (data.type === "TOP_MENU" || data.type === "BOTTOM_MENU") {
-                const isTop = data.type === "TOP_MENU";
-                const container = document.getElementById(isTop ? 'top-menu-container' : 'bottom-menu-container');
-
-                if (data.action === "show" || data.action === "update") {
-                    if (previewTimer) clearTimeout(previewTimer);
-                    
-                    document.querySelectorAll('video.video-layer').forEach(v => {
-                        v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-                    });
-                    
-                    document.querySelectorAll('.grid-tile').forEach(tile => {
-                        tile.classList.remove('is-playing');
-                        tile.classList.remove('focused');
-                    });
-
-                    container.style.transform = "translateY(0)";
-                    gridUi.style.filter = "brightness(0.3) blur(6px)"; // Menü-Blur
-                    
-                    if (isTop) updateTopMenuVisuals(data.items, data.focus);
-                    else updateBottomMenuVisuals(data.items, data.focus);
-
-                } else if (data.action === "hide") {
-                    container.style.transform = isTop ? "translateY(-100%)" : "translateY(100%)";
-                    gridUi.style.filter = "none";
-                }
-            }
-
-            else if (data.type === "UPDATE_GRID_WINDOW") {
-                document.getElementById('cast-video').style.display = 'none';
-                document.getElementById('version-display').style.display = 'none';
-                bgImageElement.style.opacity = "0"; 
-                
-                // Lade-Spinner ausschalten und Filter zurücksetzen
-                loadingSpinner.style.display = "none";
-                gridUi.style.filter = "none";
-                
-                gridUi.style.display = 'grid'; 
-                gridUi.style.transform = `translateY(-${data.offset_y}px)`;
-                
-                if (previewTimer) clearTimeout(previewTimer);
-                
-                let currentTiles = gridUi.children;
-                for(let i=0; i<data.items.length; i++) {
-                    let item = data.items[i];
-                    let tile = currentTiles[i];
-                    
-                    if (!tile) {
-                        tile = document.createElement('div');
-                        tile.className = 'grid-tile';
-                        tile.innerHTML = `<div class="media-container"></div><div class="title-container"><span></span></div>`;
-                        gridUi.appendChild(tile);
-                    }
-                    
-                    let isFocused = (i === data.focus_index);
-                    tile.className = 'grid-tile' + (isFocused ? ' focused' : '');
-                    tile.classList.remove('is-playing'); 
-                    
-                    let mediaContainer = tile.querySelector('.media-container');
-                    
-                    let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
-                    existingVideos.forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); });
-
-                    let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
-                    let imgLayer = mediaContainer.querySelector('img.media-layer');
-                    if (!imgLayer) {
-                        imgLayer = document.createElement('img');
-                        imgLayer.className = 'media-layer';
-                        mediaContainer.appendChild(imgLayer);
-                    }
-                    if (imgLayer.src !== imageSrc) { imgLayer.src = imageSrc; }
-                    
-                    if (isFocused && item.video_preview && item.video_preview !== "") {
-                        previewTimer = setTimeout(() => {
-                            try {
-                                let v = document.createElement('video');
-                                v.className = 'video-layer';
-                                v.src = item.video_preview;
-                                v.loop = true; v.muted = true; v.playsInline = true;
-                                v.style.visibility = "hidden"; 
-                                
-                                v.onerror = function() { sendTelemetry("Vorschau-Player abgestürzt"); };
-                                v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
-                                
-                                mediaContainer.appendChild(v);
-                                let playPromise = v.play();
-                                if (playPromise !== undefined) playPromise.catch(e => {});
-                            } catch(err) { sendTelemetry("Exception Vorschau"); }
-                        }, 700); 
-                    } else if (isFocused) {
-                        previewTimer = setTimeout(() => { tile.classList.add('is-playing'); }, 700);
-                    }
-                    
-                    let titleSpan = tile.querySelector('.title-container span');
-                    if(titleSpan.innerText !== item.title) { titleSpan.innerText = item.title; }
-                }
-                
-                while(gridUi.children.length > data.items.length) { gridUi.removeChild(gridUi.lastChild); }
-            }
+        if url_suffix == "": self.current_base_url = "https://xhamster.com"
+        else: self.current_base_url = f"https://xhamster.com/{url_suffix}"
             
-            else if (data.type === "GET_VERSION") {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
-            }
-            else if (data.type === "NOTIFY") {
-                showNotification(data.text, data.config);
-            }
-            else if (data.type === "CONTROL") {
-                if (data.action === "PLAY") playerManager.play();
-                else if (data.action === "PAUSE") playerManager.pause();
-                else if (data.action === "SEEK") playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                else if (data.action === "SHOW_PROGRESS") showCustomUI(false);
-            }
-            else if (data.type === "STOP_APP") {
-                context.stop(); 
-            }
-            else if (data.type === "LOAD_VIDEO") {
-                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
-                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                loadingSpinner.style.display = "none";
-                
-                document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('smart-tv-ui').style.filter = 'none'; 
-                document.getElementById('cast-video').style.display = 'block';
-                document.getElementById('version-display').style.display = 'none';
-                
-                if (previewTimer) clearTimeout(previewTimer);
-                
-                if (data.title) document.getElementById('title-ui').innerText = data.title;
-                if (data.bg_image) bgImageElement.src = data.bg_image;
-                
-                let request = new cast.framework.messages.LoadRequestData();
-                let mediaInfo = new cast.framework.messages.MediaInformation();
-                mediaInfo.contentId = data.url;
-                mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
-                let metadata = new cast.framework.messages.GenericMediaMetadata();
-                metadata.title = data.title || "Custom Stream";
-                mediaInfo.metadata = metadata;
-                request.media = mediaInfo;
-                request.autoplay = true;
-                
-                if (data.start_time) {
-                    request.currentTime = data.start_time;
-                }
+        self.current_category_name = name
+        self.current_page = 1 
+        self._fetch_current_state_data()
 
-                playerManager.load(request);
+    def _change_page(self, delta):
+        if self.current_base_url == "FAVORITES":
+            self._log("Favoriten haben keine Seiten.")
+            return
 
-                if (timeUpdateInterval) clearInterval(timeUpdateInterval);
-                timeUpdateInterval = setInterval(() => {
-                    try {
-                        let currentState = playerManager.getPlayerState();
+        new_page = self.current_page + delta
+        if 1 <= new_page <= self.max_pages:
+            self.current_page = new_page
+            self._fetch_current_state_data()
+
+    def _fetch_current_state_data(self):
+        self._update_status_labels()
+        self._log(f"Lade Daten für '{self.current_category_name}' (Seite {self.current_page})...")
+        self.lbl_list_status.configure(text="Scraper analysiert Webseite...")
+        
+        if self.cast_engine.is_active():
+            self.cast_engine.tv_controller.safe_send({"type": "SHOW_LOADING"})
+        
+        target_url = self.current_base_url
+        if self.current_page > 1:
+            if "?" in target_url:
+                target_url = target_url.replace("?", f"/{self.current_page}?") 
+            else:
+                if target_url.endswith("/"): target_url += str(self.current_page)
+                else: target_url += f"/{self.current_page}"
+        
+        def run_fetch():
+            items = self.scraper.load_custom_url(target_url)
+            self._process_fetched_items(items)
+            
+        threading.Thread(target=run_fetch, daemon=True).start()
+
+    def start_manual_scrape(self):
+        self.btn_scrape.configure(state="disabled", text="Analysiere...")
+        self._log("Browser-Analyse gestartet...")
+        self.lbl_list_status.configure(text="Scraper analysiert Webseite...")
+        
+        if self.cast_engine.is_active():
+            self.cast_engine.tv_controller.safe_send({"type": "SHOW_LOADING"})
+        
+        def run_scraping():
+            items = self.scraper.fetch_front_page()
+            self._process_fetched_items(items)
+            self.after(0, lambda: self.btn_scrape.configure(state="normal", text="▶ Analyse starten"))
+
+        threading.Thread(target=run_scraping, daemon=True).start()
+
+    def _process_fetched_items(self, items):
+        self.list_generation += 1
+        current_gen = self.list_generation
+
+        if items:
+            self.all_items = items
+            self.filtered_items = items
+            self.current_focus_index = 0
+            self.camera_top_row = 0
+            
+            self._log(f"Erfolgreich {len(items)} Videos extrahiert.")
+            self.after(0, lambda: self.lbl_list_status.configure(text="Lade Bilder herunter...", text_color="#f9e2af"))
+            
+            for widget in self.video_list_scroll.winfo_children():
+                widget.destroy()
+                
+            if self.cast_engine.is_active() and self.tv_state in ["GRID", "TOP_MENU", "BOTTOM_MENU"]:
+                self.tv_state = "GRID"
+                self.after(0, self._send_grid_window)
+
+            threading.Thread(target=self._download_and_display_images, args=(items, current_gen), daemon=True).start()
+        else:
+            self.after(0, lambda: self.lbl_list_status.configure(text="Fehler: Keine Videos gefunden (oder Favoriten leer).", text_color="#ff3333"))
+
+    def _download_and_display_images(self, items, generation):
+        for idx, item in enumerate(items):
+            if self.list_generation != generation: return 
+            self.after(0, self._create_list_row_ui, idx, item, generation)
+            time.sleep(0.05) 
+            
+        if self.list_generation == generation:
+            self.after(0, lambda: self.lbl_list_status.configure(text=f"{len(items)} Videos bereit.", text_color="white"))
+
+    def _create_list_row_ui(self, idx, item, generation):
+        if self.list_generation != generation:
+            return
+
+        row_frame = ctk.CTkFrame(self.video_list_scroll, fg_color="transparent")
+        row_frame.pack(fill="x", pady=2)
+        
+        lbl_num = ctk.CTkLabel(row_frame, text=f"{idx+1}.", width=30)
+        lbl_num.pack(side="left")
+        
+        lbl_img = ctk.CTkLabel(row_frame, text="Lade...", width=100, height=56, fg_color="#333")
+        lbl_img.pack(side="left", padx=5)
+        
+        lbl_title = ctk.CTkLabel(row_frame, text=item['title'], anchor="w", justify="left")
+        lbl_title.pack(side="left", fill="x", expand=True, padx=5)
+
+        vid_url = item.get('video_preview', '')
+        vid_entry = ctk.CTkEntry(row_frame, width=250, height=28, font=("Helvetica", 11))
+        vid_entry.pack(side="right", padx=5)
+        
+        if vid_url:
+            vid_entry.insert(0, vid_url)
+            if ".mp4" in vid_url.lower():
+                vid_entry.configure(text_color="#a6e3a1") 
+        else:
+            vid_entry.insert(0, "🔴 FEHLT")
+            vid_entry.configure(text_color="#ff3333") 
+            
+        vid_entry.configure(state="readonly")
+
+        def fetch_img():
+            if self.list_generation != generation: return
+                
+            img_url = item['image'] or item['video_preview']
+            if not img_url:
+                def set_no_img():
+                    if lbl_img.winfo_exists() and self.list_generation == generation:
+                        lbl_img.configure(text="Kein Bild")
+                self.after(0, set_no_img)
+                return
+                
+            try:
+                response = requests.get(img_url, timeout=3)
+                img_data = Image.open(BytesIO(response.content))
+                ctk_img = ctk.CTkImage(light_image=img_data, dark_image=img_data, size=(100, 56))
+                
+                def update_ui():
+                    if lbl_img.winfo_exists() and self.list_generation == generation:
+                        lbl_img.configure(image=ctk_img, text="")
                         
-                        if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
-                            bgImageElement.style.opacity = "1.0";
-                        } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
-                            bgImageElement.style.opacity = "0.15";
-                        }
+                self.after(0, update_ui)
+            except:
+                def set_err():
+                    if lbl_img.winfo_exists() and self.list_generation == generation:
+                        lbl_img.configure(text="Fehler")
+                self.after(0, set_err)
+                
+        threading.Thread(target=fetch_img, daemon=True).start()
 
-                        if (currentState !== lastPlayerState) {
-                            if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
-                                if (currentState === 'PAUSED') { document.getElementById('status-icon').innerHTML = SVG_PAUSE; showCustomUI(false); }
-                                else if (currentState === 'BUFFERING') { document.getElementById('status-icon').innerHTML = SVG_BUFFER; showCustomUI(true); }
-                                else if (currentState === 'PLAYING') { document.getElementById('status-icon').innerHTML = SVG_PLAY; showCustomUI(false); }
-                            }
-                            lastPlayerState = currentState;
-                        }
+    def _apply_filter(self):
+        q = self.search_entry.get().lower()
+        if not q: self.filtered_items = self.all_items
+        else: self.filtered_items = [i for i in self.all_items if q in i['title'].lower()]
+            
+        self.current_focus_index = 0
+        self.camera_top_row = 0
+        if self.cast_engine.is_active() and self.tv_state == "GRID":
+            self._send_grid_window()
 
-                        let cur = playerManager.getCurrentTimeSec();
-                        let dur = playerManager.getDurationSec();
-                        
-                        document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
-                        let percent = (dur > 0) ? (cur / dur * 100) : 0;
-                        document.getElementById('progress-bar-fill').style.width = percent + '%';
-                        updateClock(); 
-                        
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                            type: "TIME_UPDATE", currentTime: cur, duration: dur
-                        });
-                    } catch (e) {}
-                }, 1000); 
-            }
-        });
+    def search_cast(self):
+        self._log("Suche Chromecasts im Netzwerk...")
+        def run_scan():
+            devices, err = self.cast_engine.scan_for_devices()
+            if devices: self.after(0, lambda: self._show_device_selection(devices))
+            else: self.after(0, lambda: self._log("Keine Chromecasts gefunden."))
+        threading.Thread(target=run_scan, daemon=True).start()
 
-        window.addEventListener('keydown', function(event) {
-            if (event.key === "BrowserBack" || event.key === "Escape" || event.key === "Back") {
-                event.preventDefault(); event.stopPropagation(); 
-            }
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
-            }
-        });
+    def _show_device_selection(self, devices):
+        popup = ctk.CTkToplevel(self)
+        popup.title("Chromecast wählen")
+        popup.geometry("350x300")
+        popup.attributes("-topmost", True)
+        for cast_dev, name, app in devices:
+            btn = ctk.CTkButton(popup, text=f"{name} ({app})", command=lambda c=cast_dev, n=name: self._connect_cast(c, n, popup))
+            btn.pack(pady=5, padx=20, fill="x")
 
-        context.start(options);
-    </script>
-</body>
-</html>
+    def _connect_cast(self, cast_device, cast_name, popup):
+        popup.destroy()
+        self._log(f"Verbinde mit {cast_name}...")
+        def run_connect():
+            success, err = self.cast_engine.connect(cast_device, cast_name)
+            if success: self.after(0, lambda: self._log(f"Erfolgreich verbunden mit {cast_name}."))
+            else: self.after(0, lambda: self._log(f"Verbindungsfehler: {err}"))
+        threading.Thread(target=run_connect, daemon=True).start()
+
+    def _on_tv_ready(self, version="Unbekannt"):
+        self._log(f"TV App bereit (Version: {version}). Sende Grid...")
+        self.after(500, self._send_grid_window)
+
+    def stop_cast(self):
+        self.memory.force_save()
+        def run_stop():
+            self.cast_engine.stop_cast()
+            self.after(0, lambda: self._log("Cast-Verbindung getrennt."))
+        threading.Thread(target=run_stop, daemon=True).start()
+
+    def _on_tv_killed_app(self):
+        self._log("TV hat die Trennung initiiert. Beende PC App...")
+        self.memory.force_save()
+        self._save_window_geometry()
+        self.scraper.close_browser()
+        self.after(0, self.destroy) 
+
+    def _on_window_close(self):
+        self.memory.force_save()
+        self._save_window_geometry()
+        if self.cast_engine.is_active():
+            self.cast_engine.stop_cast()
+        self.scraper.close_browser()
+        self.destroy()
+
+    def _send_grid_window(self):
+        if not self.cast_engine.tv_controller or not self.filtered_items: return
+        self.tv_state = "GRID"
+        
+        focused_row = self.current_focus_index // self.columns
+        
+        if focused_row < self.camera_top_row:
+            self.camera_top_row = focused_row
+        elif focused_row >= self.camera_top_row + self.visible_rows:
+            self.camera_top_row = focused_row - self.visible_rows + 1
+            
+        start_row = max(0, self.camera_top_row - 1)
+        end_row = self.camera_top_row + self.visible_rows + 2 
+        
+        start_idx = start_row * self.columns
+        end_idx = end_row * self.columns
+        
+        window_items = self.filtered_items[start_idx:end_idx]
+        offset_y = (self.camera_top_row - start_row) * 310
+        relative_focus = self.current_focus_index - start_idx
+        
+        self.cast_engine.tv_controller.update_grid_window(window_items, relative_focus, offset_y)
+
+    def _on_time_update(self, current_time):
+        if self.tv_state == "VIDEO" and self.active_video_url:
+            self.memory.update_position(self.active_video_url, current_time)
+
+    def _on_tv_key(self, key):
+        if not self.cast_engine.is_active() or not self.cast_engine.tv_controller: return False
+
+        if self.tv_state == "VIDEO":
+            if key == "ArrowUp": self.cast_engine.tv_controller.send_control("SHOW_PROGRESS")
+            elif key == "ArrowRight": self.cast_engine.tv_controller.send_control("SEEK", 10) 
+            elif key == "ArrowLeft": self.cast_engine.tv_controller.send_control("SEEK", -10) 
+            elif key == "ArrowDown": 
+                video_item = self.filtered_items[self.current_focus_index]
+                added = self.fav_manager.toggle(video_item)
+                if added:
+                    self.cast_engine.tv_controller.send_notification("⭐ Zu Favoriten hinzugefügt", {"position": "center", "bg_color": "rgba(40, 167, 69, 0.9)"})
+                else:
+                    self.cast_engine.tv_controller.send_notification("❌ Aus Favoriten entfernt", {"position": "center", "bg_color": "rgba(220, 53, 69, 0.9)"})
+                return True
+            elif key in ["BrowserBack", "Escape", "Back"]:
+                self.memory.force_save()
+                self.cast_engine.tv_controller.send_control("PAUSE")
+                self.active_video_url = None
+                self.scraper.close_video_tab()
+                self._send_grid_window()
+                return True 
+            return True
+
+        elif self.tv_state == "TOP_MENU":
+            if key == "ArrowRight" and self.top_menu_index < len(self.categories) - 1:
+                self.top_menu_index += 1
+                self.cast_engine.tv_controller.safe_send({"type": "TOP_MENU", "action": "update", "focus": self.top_menu_index, "items": [c["name"] for c in self.categories]})
+            elif key == "ArrowLeft" and self.top_menu_index > 0:
+                self.top_menu_index -= 1
+                self.cast_engine.tv_controller.safe_send({"type": "TOP_MENU", "action": "update", "focus": self.top_menu_index, "items": [c["name"] for c in self.categories]})
+            elif key == "ArrowDown" or key in ["BrowserBack", "Escape", "Back"]:
+                self.tv_state = "GRID"
+                self.cast_engine.tv_controller.safe_send({"type": "TOP_MENU", "action": "hide"})
+                self._send_grid_window() 
+            elif key == "Enter" or key == "MediaPlayPause":
+                self.tv_state = "GRID"
+                self.cast_engine.tv_controller.safe_send({"type": "TOP_MENU", "action": "hide"})
+                sel_cat = self.categories[self.top_menu_index]
+                self._load_category(sel_cat["url"], sel_cat["name"])
+            return True
+
+        elif self.tv_state == "BOTTOM_MENU":
+            items = ["◀ Vorherige", f"Seite {self.current_page} von {self.max_pages}", "Nächste ▶"]
+            if key == "ArrowRight" and self.bottom_menu_index < 2:
+                self.bottom_menu_index += 1
+                self.cast_engine.tv_controller.safe_send({"type": "BOTTOM_MENU", "action": "update", "focus": self.bottom_menu_index, "items": items})
+            elif key == "ArrowLeft" and self.bottom_menu_index > 0:
+                self.bottom_menu_index -= 1
+                self.cast_engine.tv_controller.safe_send({"type": "BOTTOM_MENU", "action": "update", "focus": self.bottom_menu_index, "items": items})
+            elif key == "ArrowUp" or key in ["BrowserBack", "Escape", "Back"]:
+                self.tv_state = "GRID"
+                self.cast_engine.tv_controller.safe_send({"type": "BOTTOM_MENU", "action": "hide"})
+                self._send_grid_window() 
+            elif key == "Enter" or key == "MediaPlayPause":
+                self.tv_state = "GRID"
+                self.cast_engine.tv_controller.safe_send({"type": "BOTTOM_MENU", "action": "hide"})
+                if self.bottom_menu_index == 0: self._change_page(-1)
+                elif self.bottom_menu_index == 2: self._change_page(1)
+            return True
+
+        elif self.tv_state == "GRID":
+            max_index = len(self.filtered_items) - 1
+
+            if key == "ArrowRight":
+                if self.current_focus_index % self.columns < self.columns - 1 and self.current_focus_index < max_index:
+                    self.current_focus_index += 1
+                    self._send_grid_window()
+            elif key == "ArrowLeft":
+                if self.current_focus_index % self.columns > 0:
+                    self.current_focus_index -= 1
+                    self._send_grid_window()
+            elif key == "ArrowDown":
+                if self.current_focus_index + self.columns <= max_index:
+                    self.current_focus_index += self.columns
+                    self._send_grid_window()
+                else:
+                    if self.current_base_url != "FAVORITES":
+                        self.tv_state = "BOTTOM_MENU"
+                        self.bottom_menu_index = 1
+                        items = ["◀ Vorherige", f"Seite {self.current_page} von {self.max_pages}", "Nächste ▶"]
+                        self.cast_engine.tv_controller.safe_send({"type": "BOTTOM_MENU", "action": "show", "focus": self.bottom_menu_index, "items": items})
+            elif key == "ArrowUp":
+                if self.current_focus_index - self.columns >= 0:
+                    self.current_focus_index -= self.columns
+                    self._send_grid_window()
+                else:
+                    self.tv_state = "TOP_MENU"
+                    self.cast_engine.tv_controller.safe_send({"type": "TOP_MENU", "action": "show", "focus": self.top_menu_index, "items": [c["name"] for c in self.categories]})
+            elif key == "Enter" or key == "MediaPlayPause":
+                self._play_selected_video()
+            elif key in ["BrowserBack", "Escape", "Back"]:
+                return False 
+            return True
+
+    def _play_selected_video(self):
+        self.tv_state = "LOADING"
+        selected_item = self.filtered_items[self.current_focus_index]
+        self.active_video_url = selected_item['url']
+        self._log("Entschlüssele Video-Stream...")
+        
+        # --- NEU: SOFORTIGES FEEDBACK AM FERNSEHER ---
+        bg_img = selected_item.get('image') or selected_item.get('video_preview') or ""
+        if self.cast_engine.is_active():
+            self.cast_engine.tv_controller.prepare_video(title=selected_item['title'], bg_image=bg_img)
+        
+        def extract_and_play():
+            self.scraper.open_video_tab(selected_item['url'])
+            stream_url = self.scraper.get_stream_url(selected_item['url'])
+            
+            if stream_url and self.cast_engine.tv_controller:
+                self.tv_state = "VIDEO"
+                start_sec = self.memory.get_position(selected_item['url'])
+                self.cast_engine.tv_controller.load_video(
+                    url=stream_url, title=selected_item['title'], 
+                    bg_image=bg_img, start_time=start_sec
+                )
+                self.after(0, lambda: self._log("Stream an TV gesendet. (Pfeil RUNTER zum Favorisieren)"))
+            else:
+                self.tv_state = "GRID"
+                self.after(0, lambda: self._log("Fehler: Stream URL nicht gefunden."))
+                self.scraper.close_video_tab()
+                self.after(2000, self._send_grid_window)
+                
+        threading.Thread(target=extract_and_play, daemon=True).start()
+
+if __name__ == "__main__":
+    app = StreamViewerApp()
+    app.mainloop()
