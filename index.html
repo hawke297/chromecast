@@ -79,10 +79,11 @@
             position: absolute; top: 0; left: 0; z-index: 1; 
         }
 
+        /* FIX: Keine weiche Blende (opacity) mehr! Harter Schnitt schont die TV-GPU. */
         .grid-tile .video-layer { 
             width: 100%; height: 100%; object-fit: cover; 
             position: absolute; top: 0; left: 0; z-index: 2; 
-            opacity: 0; transition: opacity 0.5s ease-in-out;
+            visibility: hidden; 
         }
         
         .grid-tile .title-container { 
@@ -95,14 +96,11 @@
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
             padding: 0 15px; 
-            will-change: transform; 
-            transform: translateZ(0); 
         }
 
-        /* FIX: Kein padding-left 100% mehr, pures transform verhindert das Blinken */
         @keyframes marquee { 
-            0% { transform: translateX(0) translateZ(0); } 
-            100% { transform: translateX(-100%) translateZ(0); } 
+            0% { transform: translateX(0); } 
+            100% { transform: translateX(-100%); } 
         }
 
         .grid-tile.focused.is-playing .title-container span {
@@ -112,7 +110,7 @@
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.018</h1>
+    <h1 id="version-display">hawke297 player | v2.0.019</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -130,7 +128,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.018";
+        const PLAYER_VERSION = "2.0.019";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -228,6 +226,7 @@
                 if (previewTimer) clearTimeout(previewTimer);
                 
                 let currentTiles = gridUi.children;
+                
                 for(let i=0; i<data.items.length; i++) {
                     let item = data.items[i];
                     let tile = currentTiles[i];
@@ -244,6 +243,17 @@
                     tile.classList.remove('is-playing'); 
                     
                     let mediaContainer = tile.querySelector('.media-container');
+                    
+                    // FIX: Bei JEDEM Update (z.B. durch Scrollen) ALLE Videos ausnahmslos zerstören!
+                    // So kann kein altes Video in der Kachel hängen bleiben.
+                    let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
+                    existingVideos.forEach(v => {
+                        v.pause();
+                        v.removeAttribute('src'); 
+                        v.load();
+                        v.remove();
+                    });
+
                     let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
                     
                     let imgLayer = mediaContainer.querySelector('img.media-layer');
@@ -256,16 +266,6 @@
                         imgLayer.src = imageSrc;
                     }
                     
-                    if (!isFocused) {
-                        let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
-                        existingVideos.forEach(v => {
-                            v.pause();
-                            v.removeAttribute('src'); 
-                            v.load();
-                            v.remove();
-                        });
-                    }
-                    
                     if (isFocused && item.video_preview && item.video_preview !== "") {
                         previewTimer = setTimeout(() => {
                             try {
@@ -275,14 +275,15 @@
                                 v.loop = true;
                                 v.muted = true;
                                 v.playsInline = true;
+                                v.style.visibility = "hidden"; // Verhindert Flackern
                                 
                                 v.onerror = function() {
                                     sendTelemetry("Vorschau-Player abgestürzt bei: " + item.video_preview);
                                 };
                                 
                                 v.onplaying = function() {
-                                    v.style.opacity = "1";
-                                    tile.classList.add('is-playing');
+                                    v.style.visibility = "visible"; // Harter Schnitt ist sicher für TVs
+                                    tile.classList.add('is-playing'); // Erst jetzt rollt der Text!
                                 };
                                 
                                 mediaContainer.appendChild(v);
@@ -296,7 +297,7 @@
                             }
                         }, 700); 
                     } else if (isFocused) {
-                        // Fallback: Wenn es kein Video gibt, starte den Text nach dem Timer trotzdem
+                        // Wenn es kein Video gibt, soll der Text trotzdem nach 700ms rollen
                         previewTimer = setTimeout(() => {
                             tile.classList.add('is-playing');
                         }, 700);
