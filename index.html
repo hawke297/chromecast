@@ -17,7 +17,7 @@
         #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
         .notification-box { position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8); opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold; }
         
-        /* ALTE UI ELEMENTE (Werden in v2.3.0 mit preset "prime_pro" ausgeblendet!) */
+        /* ALTE UI ELEMENTE */
         #clock-ui, #title-ui, #progress-ui, h1 { z-index: 9998; text-shadow: var(--ui-text-shadow); }
         h1 { position: absolute; top: 20px; left: 20px; font-size: 18px; color: gray; }
         #clock-ui { position: absolute; top: 30px; left: 30px; padding: 10px 20px; font-size: 28px; font-weight: bold; opacity: 0; }
@@ -119,7 +119,10 @@
     <!-- ALTE UI (Default) -->
     <h1 id="version-display">hawke297 player | v2.3.0</h1>
     <img id="bg-image" />
-    <div id="notification-layer"></div>
+    
+    <!-- FIX: Notification Layer in den Vordergrund für Beenden-Bestätigungen -->
+    <div id="notification-layer" style="z-index: 10000;"></div>
+    
     <div id="clock-ui">00:00</div>
     <div id="title-ui"></div>
     <div id="progress-ui">
@@ -153,6 +156,7 @@
 
     <script>
         const PLAYER_VERSION = "2.3.0";
+        document.getElementById('version-display').style.display = 'none';
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="36" height="36" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -174,15 +178,15 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
         options.disableIdleTimeout = true; 
 
-        // --- FIX: TV-Hardware Spulen blockieren ---
+        // --- DIE GEHEIME ERLAUBNIS FÜR PYTHON ---
         let isPythonSeek = false;
         playerManager.setMessageInterceptor(cast.framework.messages.MessageType.SEEK, request => {
             if (document.body.classList.contains("preset-prime-pro")) {
                 if (!isPythonSeek) {
-                    return null; // Wenn der Fernseher nativ spulen will: Blockieren!
+                    return null; // TV Fernbedienung abwehren!
                 }
             }
-            return request;
+            return request; // Python-Befehl durchlassen
         });
 
         let timeUpdateInterval = null;
@@ -214,17 +218,27 @@
             gridUi.style.display = 'grid';
         });
 
+        // --- FIX: Erweitertes Notification System für die Beenden-Frage ---
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
+            if (config.action === "clear") {
+                layer.innerHTML = "";
+                return;
+            }
             const notif = document.createElement('div');
             notif.className = 'notification-box';
             notif.innerHTML = text;
             notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
             notif.style.color = config.text_color || "#ffffff";
+            if (config.border) notif.style.border = config.border;
             if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
-            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
+            
+            // Wenn Dauer 0, bleibt es stehen (für die Beenden-Frage wichtig)
+            if (config.duration > 0) {
+                setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration);
+            }
         }
 
         function formatTime(seconds) {
@@ -288,7 +302,8 @@
             activeSenderId = customEvent.senderId; 
 
             if (data.type === "PREPARE_VIDEO") {
-                playerManager.stop();
+                try { playerManager.stop(); } catch(e) {}
+                
                 if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
                 else document.body.classList.remove("preset-prime-pro");
 
@@ -396,7 +411,11 @@
             }
 
             else if (data.type === "UPDATE_GRID_WINDOW") {
-                playerManager.stop();
+                document.getElementById('version-display').style.display = 'none';
+                document.getElementById('title-ui').classList.remove('ui-visible');
+                document.body.classList.remove("preset-prime-pro");
+                
+                try { playerManager.stop(); } catch(e) {}
                 if (timeUpdateInterval) { clearInterval(timeUpdateInterval); timeUpdateInterval = null; }
 
                 document.body.style.backgroundColor = "#0f0f15";
@@ -409,10 +428,6 @@
                 gridUi.style.filter = "none";
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
-                
-                // --- FIX: Wir verstecken Titel und Version wieder brav! ---
-                document.getElementById('version-display').style.display = 'none';
-                document.getElementById('title-ui').classList.remove('ui-visible');
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 let currentTiles = gridUi.children;
@@ -458,14 +473,16 @@
             else if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
+            else if (data.type === "NOTIFY") {
+                showNotification(data.text, data.config);
+            }
             else if (data.type === "CONTROL") {
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
                 else if (data.action === "SEEK") {
-                    // --- FIX: Unser Python-Skript bekommt hier explizit die Spul-Erlaubnis! ---
                     isPythonSeek = true;
                     playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                    isPythonSeek = false;
+                    setTimeout(() => { isPythonSeek = false; }, 300);
                 }
                 else if (data.action === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
                     document.getElementById('progress-ui').classList.add('ui-visible');
@@ -536,7 +553,7 @@
             }
         });
 
-        // --- FIX: Erweitertes Tasten-Blockieren. Jetzt rutscht dem TV nichts mehr durch! ---
+        // --- FIX: Wir fangen ALLE Tasten ab, sodass der Fernseher absolut gehorsam auf Python wartet ---
         window.addEventListener('keydown', function(event) {
             const blockedKeys = ["BrowserBack", "Escape", "Back", "GoBack", "Return", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"];
             if (blockedKeys.includes(event.key)) {
