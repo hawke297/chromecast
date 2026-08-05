@@ -75,27 +75,36 @@
             box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
         }
         
-        /* Das Bild UND das Video füllen exakt die Kachel aus */
         .grid-tile .media-layer { 
             width: 100%; height: 100%; object-fit: cover; 
             position: absolute; top: 0; left: 0; z-index: 1; 
         }
         
+        /* Der statische Hintergrund-Balken */
         .grid-tile .title-container { 
             position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); padding: 15px; box-sizing: border-box; 
-            z-index: 2; margin: 0; overflow: hidden; text-align: center;
+            background: rgba(0,0,0,0.8); 
+            padding: 15px 0; /* Padding nur oben und unten */
+            box-sizing: border-box; z-index: 2; margin: 0; 
+            overflow: hidden; text-align: center; /* Text in der Mitte zentrieren */
         }
 
+        /* Der Text selbst (im SPAN) */
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
+            padding: 0 15px; /* Ein bisschen Luft an den Seiten, wenn der Text nicht animiert wird */
         }
 
-        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        /* DIE KORRIGIERTE ANIMATION */
+        @keyframes marquee { 
+            0% { transform: translateX(0); } /* Startet nun exakt am rechten Rand ohne Leerlücke! */
+            100% { transform: translateX(-100%); } 
+        }
 
         .grid-tile.focused .title-container span {
-            animation: marquee 8s linear infinite; text-align: left; padding-left: 100%; 
+            padding-left: 100%; /* Das schiebt den Text beim Start exakt hinter den rechten Rand der Kachel */
+            animation: marquee 8s linear infinite;
         }
     </style>
 </head>
@@ -189,7 +198,6 @@
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- HYBRIDES GRID (PERFORMANCE OPTIMIERT) ---
             if (data.type === "UPDATE_GRID_WINDOW") {
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
@@ -207,7 +215,6 @@
                     if (!tile) {
                         tile = document.createElement('div');
                         tile.className = 'grid-tile';
-                        // Das DIV wird als Container für Bild ODER Video genutzt
                         tile.innerHTML = `<div class="media-container"></div><div class="title-container"><span></span></div>`;
                         gridUi.appendChild(tile);
                     }
@@ -217,9 +224,7 @@
                     
                     let mediaContainer = tile.querySelector('.media-container');
                     
-                    // WICHTIG: Wenn fokussiert UND ein Video-Preview existiert, baue das <video> Tag
                     if (isFocused && item.video_preview && item.video_preview !== "") {
-                        // Prüfen ob schon ein Video drin ist
                         let existingVideo = mediaContainer.querySelector('video');
                         if (!existingVideo || existingVideo.src !== item.video_preview) {
                             mediaContainer.innerHTML = `<video class="media-layer" src="${item.video_preview}" loop muted playsinline></video>`;
@@ -230,10 +235,8 @@
                             existingVideo.play();
                         }
                     } 
-                    // Wenn NICHT fokussiert, baue IMMER nur das super-schnelle statische <img> Tag!
                     else {
                         let existingImg = mediaContainer.querySelector('img');
-                        // Fallback nutzen, falls kein Bild da ist, aber ein Video
                         let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
                         
                         if (!existingImg || existingImg.src !== imageSrc) {
