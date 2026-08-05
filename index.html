@@ -91,7 +91,6 @@
             overflow: hidden; text-align: center;
         }
 
-        /* NEU: Hardware-Beschleunigung für den Text */
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
@@ -100,20 +99,20 @@
             transform: translateZ(0); 
         }
 
+        /* FIX: Kein padding-left 100% mehr, pures transform verhindert das Blinken */
         @keyframes marquee { 
             0% { transform: translateX(0) translateZ(0); } 
             100% { transform: translateX(-100%) translateZ(0); } 
         }
 
-        /* NEU: Die is-playing Klasse steuert jetzt, ab wann der Text sich bewegt */
         .grid-tile.focused.is-playing .title-container span {
-            padding-left: 100%; animation: marquee 8s linear infinite;
+            animation: marquee 8s linear infinite;
         }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.016</h1>
+    <h1 id="version-display">hawke297 player | v2.0.018</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -131,7 +130,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.016";
+        const PLAYER_VERSION = "2.0.018";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -242,7 +241,7 @@
                     
                     let isFocused = (i === data.focus_index);
                     tile.className = 'grid-tile' + (isFocused ? ' focused' : '');
-                    tile.classList.remove('is-playing'); // Text anhalten bei Neubau
+                    tile.classList.remove('is-playing'); 
                     
                     let mediaContainer = tile.querySelector('.media-container');
                     let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
@@ -281,7 +280,6 @@
                                     sendTelemetry("Vorschau-Player abgestürzt bei: " + item.video_preview);
                                 };
                                 
-                                // WICHTIG: Erst wenn das Video wirklich spielt, schalten wir den Text-Scroll an!
                                 v.onplaying = function() {
                                     v.style.opacity = "1";
                                     tile.classList.add('is-playing');
