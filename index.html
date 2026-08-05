@@ -74,14 +74,22 @@
             box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10;
         }
         
+        /* Das statische Bild ist unten (z-index 1) */
         .grid-tile .media-layer { 
             width: 100%; height: 100%; object-fit: cover; 
             position: absolute; top: 0; left: 0; z-index: 1; 
         }
+
+        /* Das Video liegt drüber (z-index 2), ist aber anfangs unsichtbar */
+        .grid-tile .video-layer { 
+            width: 100%; height: 100%; object-fit: cover; 
+            position: absolute; top: 0; left: 0; z-index: 2; 
+            opacity: 0; transition: opacity 0.5s ease-in-out;
+        }
         
         .grid-tile .title-container { 
             position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 2; margin: 0; 
+            background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; 
             overflow: hidden; text-align: center;
         }
 
@@ -103,7 +111,7 @@
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.014</h1>
+    <h1 id="version-display">hawke297 player | v2.0.015</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -121,7 +129,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.014";
+        const PLAYER_VERSION = "2.0.015";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -146,11 +154,10 @@
         let lastPlayerState = null;
         let uiTimeout = null; 
         
-        let previewTimer = null; // Timer für die verzögerte Videovorschau
+        let previewTimer = null; 
         
         const bgImageElement = document.getElementById('bg-image');
 
-        // --- NEU: Telemetrie (Spion) an die PC-App senden ---
         function sendTelemetry(msg) {
             if (activeSenderId) {
                 try {
@@ -160,13 +167,11 @@
             console.log("TV-TELEMETRY: " + msg);
         }
 
-        // Fange globale JavaScript-Fehler des TVs ab
         window.onerror = function(message, source, lineno, colno, error) {
             sendTelemetry("TV JS-Crash: " + message + " (Zeile " + lineno + ")");
             return true;
         };
 
-        // Fange Fehler des Cast-Players ab
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
             sendTelemetry("Haupt-Player Fehler: " + JSON.stringify(event));
         });
@@ -223,7 +228,6 @@
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
                 
-                // Zuerst bestehenden Timer killen, falls einer läuft
                 if (previewTimer) clearTimeout(previewTimer);
                 
                 let currentTiles = gridUi.children;
@@ -244,22 +248,49 @@
                     let mediaContainer = tile.querySelector('.media-container');
                     let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
                     
-                    // --- NEU: IMMER sofort das ressourcenschonende Bild laden ---
-                    let existingImg = mediaContainer.querySelector('img');
-                    if (!existingImg || existingImg.src !== imageSrc) {
-                        mediaContainer.innerHTML = `<img class="media-layer" src="${imageSrc}">`;
+                    // 1. Das statische Bild ist immer da und bleibt da!
+                    let imgLayer = mediaContainer.querySelector('img.media-layer');
+                    if (!imgLayer) {
+                        imgLayer = document.createElement('img');
+                        imgLayer.className = 'media-layer';
+                        mediaContainer.appendChild(imgLayer);
+                    }
+                    if (imgLayer.src !== imageSrc) {
+                        imgLayer.src = imageSrc;
                     }
                     
-                    // --- NEU: Das Video erst starten, wenn die Zelle 700ms fokusiert bleibt ---
+                    // 2. Brutales Memory-Management für alte Videos
+                    if (!isFocused) {
+                        let existingVideos = mediaContainer.querySelectorAll('video.video-layer');
+                        existingVideos.forEach(v => {
+                            v.pause();
+                            v.removeAttribute('src'); // Zwingt den TV, den Decoder-Speicher zu leeren!
+                            v.load();
+                            v.remove();
+                        });
+                    }
+                    
+                    // 3. Die Gold-Lösung (Cross-Fading nach Hover-Delay)
                     if (isFocused && item.video_preview && item.video_preview !== "") {
                         previewTimer = setTimeout(() => {
                             try {
-                                mediaContainer.innerHTML = `<video class="media-layer" src="${item.video_preview}" loop muted playsinline></video>`;
-                                let v = mediaContainer.querySelector('video');
+                                let v = document.createElement('video');
+                                v.className = 'video-layer';
+                                v.src = item.video_preview;
+                                v.loop = true;
+                                v.muted = true;
+                                v.playsInline = true;
                                 
                                 v.onerror = function() {
-                                    sendTelemetry("Vorschau-Player im Grid abgestürzt bei: " + item.video_preview);
+                                    sendTelemetry("Vorschau-Player abgestürzt bei: " + item.video_preview);
                                 };
+                                
+                                // DER TRICK: Erst einfaden, wenn das erste Frame gerendert und abgespielt wird
+                                v.onplaying = function() {
+                                    v.style.opacity = "1";
+                                };
+                                
+                                mediaContainer.appendChild(v);
                                 
                                 let playPromise = v.play();
                                 if (playPromise !== undefined) {
@@ -268,7 +299,7 @@
                             } catch(err) {
                                 sendTelemetry("Exception beim Bauen des Vorschau-Videos.");
                             }
-                        }, 700); // 700ms Puffer schützt vor Überlastung beim schnellen Scrollen
+                        }, 700); 
                     }
                     
                     let titleSpan = tile.querySelector('.title-container span');
