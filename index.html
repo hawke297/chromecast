@@ -55,7 +55,6 @@
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
 
-        /* --- SMART TV GRID LAYOUT --- */
         #smart-tv-ui {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 50; display: none; background-color: #0f0f15;
@@ -80,37 +79,31 @@
             position: absolute; top: 0; left: 0; z-index: 1; 
         }
         
-        /* Der statische Hintergrund-Balken */
         .grid-tile .title-container { 
             position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); 
-            padding: 15px 0; /* Padding nur oben und unten */
-            box-sizing: border-box; z-index: 2; margin: 0; 
-            overflow: hidden; text-align: center; /* Text in der Mitte zentrieren */
+            background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 2; margin: 0; 
+            overflow: hidden; text-align: center;
         }
 
-        /* Der Text selbst (im SPAN) */
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; 
-            padding: 0 15px; /* Ein bisschen Luft an den Seiten, wenn der Text nicht animiert wird */
+            padding: 0 15px; 
         }
 
-        /* DIE KORRIGIERTE ANIMATION */
         @keyframes marquee { 
-            0% { transform: translateX(0); } /* Startet nun exakt am rechten Rand ohne Leerlücke! */
+            0% { transform: translateX(0); } 
             100% { transform: translateX(-100%); } 
         }
 
         .grid-tile.focused .title-container span {
-            padding-left: 100%; /* Das schiebt den Text beim Start exakt hinter den rechten Rand der Kachel */
-            animation: marquee 8s linear infinite;
+            padding-left: 100%; animation: marquee 8s linear infinite;
         }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
-    <h1 id="version-display">hawke297 player | v2.0.013</h1>
+    <h1 id="version-display">hawke297 player | v2.0.014</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -128,7 +121,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.0.013";
+        const PLAYER_VERSION = "2.0.014";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -153,7 +146,30 @@
         let lastPlayerState = null;
         let uiTimeout = null; 
         
+        let previewTimer = null; // Timer für die verzögerte Videovorschau
+        
         const bgImageElement = document.getElementById('bg-image');
+
+        // --- NEU: Telemetrie (Spion) an die PC-App senden ---
+        function sendTelemetry(msg) {
+            if (activeSenderId) {
+                try {
+                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg });
+                } catch(e) {}
+            }
+            console.log("TV-TELEMETRY: " + msg);
+        }
+
+        // Fange globale JavaScript-Fehler des TVs ab
+        window.onerror = function(message, source, lineno, colno, error) {
+            sendTelemetry("TV JS-Crash: " + message + " (Zeile " + lineno + ")");
+            return true;
+        };
+
+        // Fange Fehler des Cast-Players ab
+        playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+            sendTelemetry("Haupt-Player Fehler: " + JSON.stringify(event));
+        });
         
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
@@ -207,6 +223,9 @@
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
                 
+                // Zuerst bestehenden Timer killen, falls einer läuft
+                if (previewTimer) clearTimeout(previewTimer);
+                
                 let currentTiles = gridUi.children;
                 for(let i=0; i<data.items.length; i++) {
                     let item = data.items[i];
@@ -223,25 +242,33 @@
                     tile.className = 'grid-tile' + (isFocused ? ' focused' : '');
                     
                     let mediaContainer = tile.querySelector('.media-container');
+                    let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
                     
+                    // --- NEU: IMMER sofort das ressourcenschonende Bild laden ---
+                    let existingImg = mediaContainer.querySelector('img');
+                    if (!existingImg || existingImg.src !== imageSrc) {
+                        mediaContainer.innerHTML = `<img class="media-layer" src="${imageSrc}">`;
+                    }
+                    
+                    // --- NEU: Das Video erst starten, wenn die Zelle 700ms fokusiert bleibt ---
                     if (isFocused && item.video_preview && item.video_preview !== "") {
-                        let existingVideo = mediaContainer.querySelector('video');
-                        if (!existingVideo || existingVideo.src !== item.video_preview) {
-                            mediaContainer.innerHTML = `<video class="media-layer" src="${item.video_preview}" loop muted playsinline></video>`;
-                            let v = mediaContainer.querySelector('video');
-                            let playPromise = v.play();
-                            if (playPromise !== undefined) playPromise.catch(e => {});
-                        } else if (existingVideo && existingVideo.paused) {
-                            existingVideo.play();
-                        }
-                    } 
-                    else {
-                        let existingImg = mediaContainer.querySelector('img');
-                        let imageSrc = item.image && item.image !== "" ? item.image : item.video_preview;
-                        
-                        if (!existingImg || existingImg.src !== imageSrc) {
-                            mediaContainer.innerHTML = `<img class="media-layer" src="${imageSrc}">`;
-                        }
+                        previewTimer = setTimeout(() => {
+                            try {
+                                mediaContainer.innerHTML = `<video class="media-layer" src="${item.video_preview}" loop muted playsinline></video>`;
+                                let v = mediaContainer.querySelector('video');
+                                
+                                v.onerror = function() {
+                                    sendTelemetry("Vorschau-Player im Grid abgestürzt bei: " + item.video_preview);
+                                };
+                                
+                                let playPromise = v.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.catch(e => { sendTelemetry("Autoplay blockiert: " + e.message); });
+                                }
+                            } catch(err) {
+                                sendTelemetry("Exception beim Bauen des Vorschau-Videos.");
+                            }
+                        }, 700); // 700ms Puffer schützt vor Überlastung beim schnellen Scrollen
                     }
                     
                     let titleSpan = tile.querySelector('.title-container span');
@@ -257,11 +284,6 @@
             
             else if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
-            }
-            else if (data.type === "SET_CONFIG") {
-                const root = document.documentElement;
-                if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
-                if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
             }
             else if (data.type === "NOTIFY") {
                 showNotification(data.text, data.config);
@@ -279,6 +301,8 @@
                 document.getElementById('smart-tv-ui').style.display = 'none';
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
+                
+                if (previewTimer) clearTimeout(previewTimer);
                 
                 if (data.title) document.getElementById('title-ui').innerText = data.title;
                 if (data.bg_image) bgImageElement.src = data.bg_image;
