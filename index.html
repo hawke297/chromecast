@@ -93,16 +93,18 @@
         }
 
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        .grid-tile.focused.is-playing .title-container span { padding-left: 100%; animation: marquee 8s linear infinite; }
-
+        
+        .grid-tile.focused.is-playing .title-container span { 
+            padding-left: 100%;
+            animation: marquee 8s linear infinite; 
+        }
 
         /* --- NEU: LEFT MENU (Kategorien) & BOTTOM MENU (Seiten) --- */
         #left-menu-container {
             position: absolute; left: 0; top: 0; width: 60vw; height: 100vh;
             z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            display: flex; flex-direction: column; justify-content: center;
             overflow: hidden; box-sizing: border-box;
-            transform: translateX(-100%); /* Versteckt links */
+            transform: translateX(-100%); 
             background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%);
         }
 
@@ -111,13 +113,15 @@
             z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             display: flex; align-items: center; justify-content: center;
             overflow: hidden; box-sizing: border-box;
-            transform: translateY(100%); /* Versteckt unten */
+            transform: translateY(100%); 
             background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
         }
 
+        /* FIX: Die Track-Position ist jetzt absolut, was die Mathematik beim Scrollen wasserdicht macht! */
         .menu-track-left { 
+            position: absolute; top: 0; left: 0; width: 100%;
             display: flex; flex-direction: column; transition: transform 0.3s ease-out; 
-            padding: 45vh 40px; width: 100%; box-sizing: border-box; 
+            padding: 0 40px; box-sizing: border-box; 
         }
         
         .menu-track-bottom { display: flex; justify-content: center; width: 100vw; }
@@ -169,11 +173,10 @@
         </svg>
     </div>
 
-    <!-- Die Menüs -->
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.2.0</h1>
+    <h1 id="version-display">hawke297 player | v2.1.4</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -191,7 +194,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.2.0";
+        const PLAYER_VERSION = "2.1.4";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -284,7 +287,7 @@
             }
         }
 
-        // --- NEU: Menü Rendern (Left = Vertikal, Bottom = Horizontal) ---
+        // --- FIX: Die neue, absolut perfekte Scrolling-Logik für das seitliche Menü! ---
         function updateLeftMenuVisuals(items, focusIndex) {
             const track = document.getElementById("left-menu-track");
             track.innerHTML = "";
@@ -390,7 +393,6 @@
                         tile.classList.remove('focused');
                     });
 
-                    // Menü einschieben
                     container.style.transform = isLeft ? "translateX(0)" : "translateY(0)";
                     gridUi.style.filter = "brightness(0.3) blur(6px)"; 
                     
