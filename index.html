@@ -61,7 +61,9 @@
             z-index: 50; display: none; background-color: #0f0f15;
             padding: 60px; box-sizing: border-box;
             grid-template-columns: repeat(3, 1fr); gap: 30px;
-            transition: transform 0.2s ease-out, filter 0.3s; overflow: visible;
+            /* FIX: Sanftes opacity-Fading, KEIN filter mehr! */
+            transition: transform 0.2s ease-out, opacity 0.3s ease-out; 
+            overflow: visible;
         }
         
         .grid-tile {
@@ -111,7 +113,7 @@
         }
 
         .menu-track {
-            display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw; /* Startet in der Mitte */
+            display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw;
         }
 
         .menu-item {
@@ -129,11 +131,11 @@
 <body>
     <div id="smart-tv-ui"></div>
     
-    <!-- NEU: Menü Layer -->
+    <!-- Menü Layer -->
     <div id="top-menu-container"><div class="menu-track" id="top-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.1.0</h1>
+    <h1 id="version-display">hawke297 player | v2.1.1</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -151,7 +153,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.1.0";
+        const PLAYER_VERSION = "2.1.1";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -248,27 +250,29 @@
                 if (idx === focusIndex) focusEl = d;
             });
 
-            // Zentriere das fokussierte Element
-            if (focusEl) {
-                const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
-                track.style.transform = `translateX(calc(50vw - ${offset}px))`;
-            }
+            // FIX: requestAnimationFrame schützt die TV GPU vor Layout-Thrashing
+            requestAnimationFrame(() => {
+                if (focusEl) {
+                    const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
+                    track.style.transform = `translateX(calc(50vw - ${offset}px))`;
+                }
+            });
         }
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- NEU: MENÜ STEUERUNG ---
+            // --- MENÜ STEUERUNG ---
             if (data.type === "TOP_MENU") {
                 const container = document.getElementById('top-menu-container');
                 if (data.action === "show" || data.action === "update") {
                     container.style.transform = "translateY(0)";
-                    gridUi.style.filter = "brightness(0.3) blur(2px)"; // Hintergrund abdunkeln
+                    gridUi.style.opacity = "0.15"; // FIX: Opacity statt Blur!
                     updateMenuVisuals("top-menu-track", data.items, data.focus);
                 } else if (data.action === "hide") {
                     container.style.transform = "translateY(-100%)";
-                    gridUi.style.filter = "none";
+                    gridUi.style.opacity = "1";
                 }
             }
             
@@ -276,11 +280,11 @@
                 const container = document.getElementById('bottom-menu-container');
                 if (data.action === "show" || data.action === "update") {
                     container.style.transform = "translateY(0)";
-                    gridUi.style.filter = "brightness(0.3) blur(2px)";
+                    gridUi.style.opacity = "0.15"; // FIX: Opacity statt Blur!
                     updateMenuVisuals("bottom-menu-track", data.items, data.focus);
                 } else if (data.action === "hide") {
                     container.style.transform = "translateY(100%)";
-                    gridUi.style.filter = "none";
+                    gridUi.style.opacity = "1";
                 }
             }
 
@@ -373,7 +377,7 @@
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 
                 document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('smart-tv-ui').style.filter = 'none'; // Blur entfernen
+                document.getElementById('smart-tv-ui').style.opacity = '1'; // FIX: Opacity zurücksetzen!
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
