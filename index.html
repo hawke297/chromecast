@@ -93,39 +93,53 @@
         }
 
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        
-        .grid-tile.focused.is-playing .title-container span { 
-            padding-left: 100%;
-            animation: marquee 8s linear infinite; 
-        }
+        .grid-tile.focused.is-playing .title-container span { padding-left: 100%; animation: marquee 8s linear infinite; }
 
-        /* --- MENÜ BEREICHE --- */
-        #top-menu-container, #bottom-menu-container {
-            position: absolute; left: 0; width: 100vw; height: 140px;
+
+        /* --- NEU: LEFT MENU (Kategorien) & BOTTOM MENU (Seiten) --- */
+        #left-menu-container {
+            position: absolute; left: 0; top: 0; width: 60vw; height: 100vh;
             z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            display: flex; align-items: center; overflow: hidden; box-sizing: border-box;
-        }
-
-        #top-menu-container {
-            top: 0; transform: translateY(-100%);
-            background: linear-gradient(to bottom, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
+            display: flex; flex-direction: column; justify-content: center;
+            overflow: hidden; box-sizing: border-box;
+            transform: translateX(-100%); /* Versteckt links */
+            background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%);
         }
 
         #bottom-menu-container {
-            bottom: 0; transform: translateY(100%); 
+            position: absolute; left: 0; bottom: 0; width: 100vw; height: 140px;
+            z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; box-sizing: border-box;
+            transform: translateY(100%); /* Versteckt unten */
             background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
         }
 
-        .menu-track-top { display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw; }
+        .menu-track-left { 
+            display: flex; flex-direction: column; transition: transform 0.3s ease-out; 
+            padding: 45vh 40px; width: 100%; box-sizing: border-box; 
+        }
+        
         .menu-track-bottom { display: flex; justify-content: center; width: 100vw; }
 
-        .menu-item {
+        .menu-item-left {
+            color: #666; font-size: 32px; font-weight: bold; margin: 10px 0;
+            padding: 15px 30px; border-radius: 12px; border: 3px solid transparent;
+            white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4); width: max-content;
+        }
+
+        .menu-item-left.focused {
+            color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
+            transform: scale(1.1); transform-origin: left center; box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+        }
+
+        .menu-item-bottom {
             color: #666; font-size: 26px; font-weight: bold; margin: 0 15px;
             padding: 12px 25px; border-radius: 12px; border: 3px solid transparent;
             white-space: nowrap; transition: all 0.2s; background: rgba(0,0,0,0.4);
         }
 
-        .menu-item.focused {
+        .menu-item-bottom.focused {
             color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
             transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
         }
@@ -155,10 +169,11 @@
         </svg>
     </div>
 
-    <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
+    <!-- Die Menüs -->
+    <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.1.2</h1>
+    <h1 id="version-display">hawke297 player | v2.2.0</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -176,7 +191,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.1.2";
+        const PLAYER_VERSION = "2.2.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -218,7 +233,16 @@
         };
 
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            sendTelemetry("Haupt-Player Fehler: " + JSON.stringify(event));
+            const errCode = event.detailedErrorCode || "Unbekannt";
+            sendTelemetry("Haupt-Player Fehler Code: " + errCode);
+            showNotification("❌ Stream nicht erreichbar (Code " + errCode + ")", {position: "center", duration: 3000, bg_color: "rgba(220, 53, 69, 0.9)"});
+            
+            loadingSpinner.style.display = "none";
+            document.getElementById('cast-video').style.display = 'none';
+            document.body.style.backgroundColor = "#0f0f15";
+            bgImageElement.removeAttribute('src');
+            bgImageElement.style.opacity = "0"; 
+            gridUi.style.display = 'grid';
         });
         
         function showNotification(text, config) {
@@ -260,14 +284,15 @@
             }
         }
 
-        function updateTopMenuVisuals(items, focusIndex) {
-            const track = document.getElementById("top-menu-track");
+        // --- NEU: Menü Rendern (Left = Vertikal, Bottom = Horizontal) ---
+        function updateLeftMenuVisuals(items, focusIndex) {
+            const track = document.getElementById("left-menu-track");
             track.innerHTML = "";
             let focusEl = null;
 
             items.forEach((txt, idx) => {
                 let d = document.createElement('div');
-                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
+                d.className = 'menu-item-left' + (idx === focusIndex ? ' focused' : '');
                 d.innerText = txt;
                 track.appendChild(d);
                 if (idx === focusIndex) focusEl = d;
@@ -275,8 +300,8 @@
 
             requestAnimationFrame(() => {
                 if (focusEl) {
-                    const offset = focusEl.offsetLeft + (focusEl.offsetWidth / 2);
-                    track.style.transform = `translateX(calc(50vw - ${offset}px))`;
+                    const offset = focusEl.offsetTop + (focusEl.offsetHeight / 2);
+                    track.style.transform = `translateY(calc(50vh - ${offset}px))`;
                 }
             });
         }
@@ -286,7 +311,7 @@
             track.innerHTML = "";
             items.forEach((txt, idx) => {
                 let d = document.createElement('div');
-                d.className = 'menu-item' + (idx === focusIndex ? ' focused' : '');
+                d.className = 'menu-item-bottom' + (idx === focusIndex ? ' focused' : '');
                 d.innerText = txt;
                 track.appendChild(d);
             });
@@ -299,7 +324,7 @@
             if (data.type === "PREPARE_VIDEO") {
                 playerManager.stop();
                 
-                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
+                document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 
                 gridUi.style.display = 'none';
@@ -330,7 +355,7 @@
             }
 
             else if (data.type === "SHOW_LOADING") {
-                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
+                document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 
                 document.body.style.backgroundColor = "#0f0f15";
@@ -349,9 +374,9 @@
                 });
             }
 
-            else if (data.type === "TOP_MENU" || data.type === "BOTTOM_MENU") {
-                const isTop = data.type === "TOP_MENU";
-                const container = document.getElementById(isTop ? 'top-menu-container' : 'bottom-menu-container');
+            else if (data.type === "LEFT_MENU" || data.type === "BOTTOM_MENU") {
+                const isLeft = data.type === "LEFT_MENU";
+                const container = document.getElementById(isLeft ? 'left-menu-container' : 'bottom-menu-container');
 
                 if (data.action === "show" || data.action === "update") {
                     if (previewTimer) clearTimeout(previewTimer);
@@ -365,14 +390,15 @@
                         tile.classList.remove('focused');
                     });
 
-                    container.style.transform = "translateY(0)";
+                    // Menü einschieben
+                    container.style.transform = isLeft ? "translateX(0)" : "translateY(0)";
                     gridUi.style.filter = "brightness(0.3) blur(6px)"; 
                     
-                    if (isTop) updateTopMenuVisuals(data.items, data.focus);
+                    if (isLeft) updateLeftMenuVisuals(data.items, data.focus);
                     else updateBottomMenuVisuals(data.items, data.focus);
 
                 } else if (data.action === "hide") {
-                    container.style.transform = isTop ? "translateY(-100%)" : "translateY(100%)";
+                    container.style.transform = isLeft ? "translateX(-100%)" : "translateY(100%)";
                     gridUi.style.filter = "none";
                 }
             }
@@ -475,7 +501,7 @@
             else if (data.type === "LOAD_VIDEO") {
                 loadingSpinner.style.display = "none";
                 
-                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
+                document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 
                 document.getElementById('smart-tv-ui').style.display = 'none';
