@@ -55,6 +55,7 @@
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
 
+        /* --- DAS HAUPT GRID --- */
         #smart-tv-ui {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 50; display: none; background-color: #0f0f15;
@@ -87,11 +88,19 @@
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; 
+            will-change: transform; /* Schont die GPU beim Scrollen */
         }
 
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        .grid-tile.focused.is-playing .title-container span { animation: marquee 8s linear infinite; }
+        
+        /* FIX: padding-left 100% ist wieder da, damit der Text sanft von ganz rechts hereingleitet! */
+        .grid-tile.focused.is-playing .title-container span { 
+            padding-left: 100%;
+            animation: marquee 8s linear infinite; 
+        }
 
+
+        /* --- MENÜ BEREICHE --- */
         #top-menu-container, #bottom-menu-container {
             position: absolute; left: 0; width: 100vw; height: 140px;
             z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
@@ -122,6 +131,7 @@
             transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
         }
 
+        /* --- LADE SPINNER --- */
         #loading-spinner {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             z-index: 200; display: none;
@@ -149,7 +159,7 @@
     <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.2.0</h1>
+    <h1 id="version-display">hawke297 player | v2.2.1</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -167,7 +177,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.2.0";
+        const PLAYER_VERSION = "2.2.1";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -287,7 +297,6 @@
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- NEU: PREPARE_VIDEO ---
             if (data.type === "PREPARE_VIDEO") {
                 document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
@@ -450,7 +459,6 @@
                 context.stop(); 
             }
             else if (data.type === "LOAD_VIDEO") {
-                // UPDATE FÜR LOAD_VIDEO: Spinner aus!
                 loadingSpinner.style.display = "none";
                 
                 document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
@@ -466,7 +474,7 @@
                 if (data.title) {
                     let titleEl = document.getElementById('title-ui');
                     titleEl.innerText = data.title;
-                    titleEl.classList.remove('ui-visible'); // Lassen wir die normale Logik (showCustomUI) ran
+                    titleEl.classList.remove('ui-visible'); 
                 }
                 if (data.bg_image) {
                     bgImageElement.src = data.bg_image;
