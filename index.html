@@ -12,7 +12,9 @@
             --ui-border-radius: 0px; --title-display: block;
         }
 
-        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; }
+        /* FIX: Die "Tapete" des TVs ist jetzt standardmäßig dunkelgrau! */
+        body { background-color: #0f0f15; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; transition: background-color 0.3s; }
+        
         #bg-image { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out; }
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
         h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
@@ -58,7 +60,8 @@
         /* --- DAS HAUPT GRID --- */
         #smart-tv-ui {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 50; display: none; background-color: #0f0f15;
+            z-index: 50; display: none; 
+            background-color: transparent; /* FIX: Kein eigener Hintergrund mehr, der beim Scrollen hochrutschen könnte */
             padding: 60px; box-sizing: border-box;
             grid-template-columns: repeat(3, 1fr); gap: 30px;
             transition: transform 0.2s ease-out, filter 0.4s ease-out, opacity 0.3s ease-out; 
@@ -88,17 +91,15 @@
         .grid-tile .title-container span {
             display: inline-block; color: white; font-size: 22px; font-weight: bold; 
             font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; 
-            will-change: transform; /* Schont die GPU beim Scrollen */
+            will-change: transform; 
         }
 
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
         
-        /* FIX: padding-left 100% ist wieder da, damit der Text sanft von ganz rechts hereingleitet! */
         .grid-tile.focused.is-playing .title-container span { 
             padding-left: 100%;
             animation: marquee 8s linear infinite; 
         }
-
 
         /* --- MENÜ BEREICHE --- */
         #top-menu-container, #bottom-menu-container {
@@ -159,7 +160,7 @@
     <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.2.1</h1>
+    <h1 id="version-display">hawke297 player | v2.3.0</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -177,7 +178,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.2.1";
+        const PLAYER_VERSION = "2.3.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -304,6 +305,9 @@
                 gridUi.style.display = 'none';
                 gridUi.style.filter = 'none';
                 
+                // Hintergrund auf tiefschwarz für saubere Filmbalken setzen
+                document.body.style.backgroundColor = "#000000";
+                
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
@@ -329,6 +333,9 @@
             else if (data.type === "SHOW_LOADING") {
                 document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                
+                // Hintergrund wieder auf unser Grid-Grau
+                document.body.style.backgroundColor = "#0f0f15";
                 
                 gridUi.style.filter = "brightness(0.3) blur(6px)";
                 gridUi.style.opacity = "1";
@@ -373,9 +380,14 @@
             }
 
             else if (data.type === "UPDATE_GRID_WINDOW") {
+                // FIX: Beim Zurückkehren ins Grid machen wir die Tapete wieder dunkelgrau 
+                // und löschen alte Geisterbilder aus dem Speicher!
+                document.body.style.backgroundColor = "#0f0f15";
+                bgImageElement.removeAttribute('src');
+                bgImageElement.style.opacity = "0"; 
+
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
-                bgImageElement.style.opacity = "0"; 
                 
                 loadingSpinner.style.display = "none";
                 gridUi.style.filter = "none";
@@ -466,6 +478,10 @@
                 
                 document.getElementById('smart-tv-ui').style.display = 'none';
                 document.getElementById('smart-tv-ui').style.filter = 'none'; 
+                
+                // Hintergrund für das Video auf echtes Schwarz setzen
+                document.body.style.backgroundColor = "#000000";
+                
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
