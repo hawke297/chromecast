@@ -61,8 +61,7 @@
             z-index: 50; display: none; background-color: #0f0f15;
             padding: 60px; box-sizing: border-box;
             grid-template-columns: repeat(3, 1fr); gap: 30px;
-            /* Filter Transition hinzugefügt für das weiche Einblenden des Blurs */
-            transition: transform 0.2s ease-out, filter 0.4s ease-out; 
+            transition: transform 0.2s ease-out, filter 0.4s ease-out, opacity 0.3s ease-out; 
             overflow: visible;
         }
         
@@ -94,7 +93,6 @@
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
         .grid-tile.focused.is-playing .title-container span { animation: marquee 8s linear infinite; }
 
-
         /* --- MENÜ BEREICHE --- */
         #top-menu-container, #bottom-menu-container {
             position: absolute; left: 0; width: 100vw; height: 140px;
@@ -112,15 +110,8 @@
             background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%);
         }
 
-        /* Top Track (Kategorien) - Rutscht hin und her */
-        .menu-track-top {
-            display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw;
-        }
-
-        /* Bottom Track (Seiten) - Starr zentriert! */
-        .menu-track-bottom {
-            display: flex; justify-content: center; width: 100vw;
-        }
+        .menu-track-top { display: flex; flex-wrap: nowrap; transition: transform 0.3s ease-out; padding: 0 45vw; }
+        .menu-track-bottom { display: flex; justify-content: center; width: 100vw; }
 
         .menu-item {
             color: #666; font-size: 26px; font-weight: bold; margin: 0 15px;
@@ -132,16 +123,38 @@
             color: #fff; border-color: #d0383e; background: rgba(208,56,62,0.3);
             transform: scale(1.15); box-shadow: 0 10px 20px rgba(0,0,0,0.6);
         }
+
+        /* --- NEU: LADE SPINNER --- */
+        #loading-spinner {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 200; display: none;
+        }
+        .spinner { animation: rotate 2s linear infinite; width: 100px; height: 100px; }
+        .spinner .path { stroke: #d0383e; stroke-linecap: round; animation: dash 1.5s ease-in-out infinite; }
+        
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        @keyframes dash {
+            0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+            50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+            100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+        }
     </style>
 </head>
 <body>
     <div id="smart-tv-ui"></div>
     
+    <!-- Lade Spinner Overlay -->
+    <div id="loading-spinner">
+        <svg class="spinner" viewBox="0 0 50 50">
+            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+        </svg>
+    </div>
+
     <!-- Menü Layer -->
     <div id="top-menu-container"><div class="menu-track-top" id="top-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display">hawke297 player | v2.1.2</h1>
+    <h1 id="version-display">hawke297 player | v2.2.0</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -159,7 +172,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.1.2";
+        const PLAYER_VERSION = "2.2.0";
         document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
@@ -187,6 +200,7 @@
         
         const bgImageElement = document.getElementById('bg-image');
         const gridUi = document.getElementById('smart-tv-ui');
+        const loadingSpinner = document.getElementById('loading-spinner');
 
         function sendTelemetry(msg) {
             if (activeSenderId) {
@@ -242,7 +256,6 @@
             }
         }
 
-        // --- HILFSFUNKTION FÜR TOP MENÜ (Slider) ---
         function updateTopMenuVisuals(items, focusIndex) {
             const track = document.getElementById("top-menu-track");
             track.innerHTML = "";
@@ -264,7 +277,6 @@
             });
         }
 
-        // --- HILFSFUNKTION FÜR BOTTOM MENÜ (Starr Zentriert) ---
         function updateBottomMenuVisuals(items, focusIndex) {
             const track = document.getElementById("bottom-menu-track");
             track.innerHTML = "";
@@ -274,21 +286,39 @@
                 d.innerText = txt;
                 track.appendChild(d);
             });
-            // Kein Transform-Verschieben nötig, da Flexbox (justify-content: center) das macht!
         }
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- MENÜ STEUERUNG MIT "FREEZE THE WORLD" ---
-            if (data.type === "TOP_MENU" || data.type === "BOTTOM_MENU") {
+            // --- NEU: LADE BILDSCHIRM ---
+            if (data.type === "SHOW_LOADING") {
+                // Menüs verstecken
+                document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
+                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                
+                // Spinner zeigen und Grid Blurren
+                gridUi.style.filter = "brightness(0.3) blur(6px)";
+                gridUi.style.opacity = "1";
+                loadingSpinner.style.display = "block";
+                
+                // Laufende Videos töten, um Bandbreite frei zu machen
+                if (previewTimer) clearTimeout(previewTimer);
+                document.querySelectorAll('video.video-layer').forEach(v => {
+                    v.pause(); v.removeAttribute('src'); v.load(); v.remove();
+                });
+                document.querySelectorAll('.grid-tile').forEach(tile => {
+                    tile.classList.remove('is-playing');
+                    tile.classList.remove('focused');
+                });
+            }
+
+            else if (data.type === "TOP_MENU" || data.type === "BOTTOM_MENU") {
                 const isTop = data.type === "TOP_MENU";
                 const container = document.getElementById(isTop ? 'top-menu-container' : 'bottom-menu-container');
 
                 if (data.action === "show" || data.action === "update") {
-                    
-                    // 1. FREEZE: Alles stoppen
                     if (previewTimer) clearTimeout(previewTimer);
                     
                     document.querySelectorAll('video.video-layer').forEach(v => {
@@ -300,11 +330,9 @@
                         tile.classList.remove('focused');
                     });
 
-                    // 2. Menü abdunkeln MIT dem schönen Blur-Effekt!
                     container.style.transform = "translateY(0)";
-                    gridUi.style.filter = "brightness(0.3) blur(6px)"; 
+                    gridUi.style.filter = "brightness(0.3) blur(6px)"; // Menü-Blur
                     
-                    // 3. Menü zeichnen
                     if (isTop) updateTopMenuVisuals(data.items, data.focus);
                     else updateBottomMenuVisuals(data.items, data.focus);
 
@@ -318,6 +346,10 @@
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
                 bgImageElement.style.opacity = "0"; 
+                
+                // Lade-Spinner ausschalten und Filter zurücksetzen
+                loadingSpinner.style.display = "none";
+                gridUi.style.filter = "none";
                 
                 gridUi.style.display = 'grid'; 
                 gridUi.style.transform = `translateY(-${data.offset_y}px)`;
@@ -400,9 +432,10 @@
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('top-menu-container').style.transform = "translateY(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                loadingSpinner.style.display = "none";
                 
                 document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('smart-tv-ui').style.filter = 'none'; // Verhindert Bug beim Beenden des Videos
+                document.getElementById('smart-tv-ui').style.filter = 'none'; 
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
                 
