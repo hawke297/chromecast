@@ -85,7 +85,6 @@
             grid-template-columns: repeat(3, 1fr); 
             gap: 30px;
             transition: transform 0.2s ease-out; 
-            /* WICHTIG: Überschüssige Zeilen außerhalb des TVs unsichtbar machen */
             overflow: visible;
         }
         
@@ -96,11 +95,10 @@
             border: 6px solid transparent; 
             transition: border-color 0.1s, transform 0.1s;
             position: relative; 
-            height: 280px; /* Feste Höhe für alle Kacheln zwingend erforderlich */
+            height: 280px; 
             display: block;
         }
         
-        /* Die neue rote Fokus-Farbe */
         .grid-tile.focused {
             border-color: #d0383e; 
             transform: scale(1.05);
@@ -108,19 +106,18 @@
             z-index: 10;
         }
         
-        /* Das Vorschau-Video (zwingt es in die Kachel-Grenzen) */
         .grid-tile video { 
             width: 100%; 
             height: 100%; 
-            object-fit: cover; /* WICHTIG: Schneidet Ränder ab, um die Kachel zu füllen */
+            object-fit: cover; 
             position: absolute; 
             top: 0; 
             left: 0; 
             z-index: 1; 
         }
         
-        /* Der Text überdeckt nicht mehr, sondern liegt sicher unten drüber */
-        .grid-tile .title { 
+        /* Der statische Hintergrund-Balken */
+        .grid-tile .title-container { 
             position: absolute; 
             bottom: 0; 
             left: 0; 
@@ -130,30 +127,30 @@
             box-sizing: border-box; 
             z-index: 2; 
             margin: 0; 
-            text-shadow: 1px 1px 3px black;
-            color: white; 
-            font-size: 22px; 
-            font-weight: bold; 
-            font-family: sans-serif; 
-            
-            /* Text-Formatierung für das Durchrollen */
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: clip; /* Clip verhindert die "..." am Ende, sieht beim Scrollen besser aus */
+            overflow: hidden; /* Beschneidet den animierten Text am Rand */
             text-align: center;
         }
 
-        /* Die Animation für den rollenden Text (Marquee) */
-        @keyframes marquee {
-            0%   { transform: translateX(5%); }
-            100% { transform: translateX(-100%); }
+        /* Der Text selbst (im SPAN) */
+        .grid-tile .title-container span {
+            display: inline-block;
+            color: white; 
+            font-size: 22px; 
+            font-weight: bold; 
+            font-family: sans-serif;
+            text-shadow: 1px 1px 3px black;
+            white-space: nowrap; 
         }
 
-        /* Nur wenn die Kachel focused ist, wird animiert */
-        .grid-tile.focused .title {
+        /* Die Animation */
+        @keyframes marquee {
+            0%   { transform: translateX(100%); } /* Startet ganz rechts */
+            100% { transform: translateX(-100%); } /* Fährt nach ganz links raus */
+        }
+
+        /* Auslöser der Animation */
+        .grid-tile.focused .title-container span {
             animation: marquee 8s linear infinite;
-            text-align: left;
-            padding-left: 100%; /* Startet rechts außerhalb der sichtbaren Box */
         }
     </style>
 </head>
@@ -251,7 +248,6 @@
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
 
-            // --- SLIDING WINDOW GRID LOGIK ---
             if (data.type === "UPDATE_GRID_WINDOW") {
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('version-display').style.display = 'none';
@@ -269,8 +265,8 @@
                     if (!tile) {
                         tile = document.createElement('div');
                         tile.className = 'grid-tile';
-                        // Das Video Element füllt nun 100% der Kachel per CSS aus
-                        tile.innerHTML = `<video src="" loop muted playsinline></video><div class="title"></div>`;
+                        // NEU: Title ist nun in einem Container mit SPAN gewrappt
+                        tile.innerHTML = `<video src="" loop muted playsinline></video><div class="title-container"><span></span></div>`;
                         gridUi.appendChild(tile);
                     }
                     
@@ -292,10 +288,10 @@
                         video.currentTime = 0; 
                     }
                     
-                    let title = tile.querySelector('.title');
-                    // Das <span> ist wichtig, falls wir den Text später anders greifen wollen
-                    if(title.innerText !== item.title) {
-                        title.innerText = item.title;
+                    // Den Text setzen wir nun im <span>
+                    let titleSpan = tile.querySelector('.title-container span');
+                    if(titleSpan.innerText !== item.title) {
+                        titleSpan.innerText = item.title;
                     }
                 }
                 
