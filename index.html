@@ -199,13 +199,13 @@
                     if (!tile) {
                         tile = document.createElement('div');
                         tile.className = 'grid-tile';
-                        tile.innerHTML = `<img src=""><div class="title"></div>`;
+                        tile.innerHTML = '<video src="" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;"></video><div class="title"></div>';
                         gridUi.appendChild(tile);
                     }
                     
                     tile.className = 'grid-tile' + (i === data.focus_index ? ' focused' : '');
                     
-                    let img = tile.querySelector('img');
+                    let img = tile.querySelector('video');
                     if(img.src !== item.image) img.src = item.image; // Lädt nur, wenn sich das Bild ändert
                     
                     let title = tile.querySelector('.title');
