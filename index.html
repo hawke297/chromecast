@@ -80,11 +80,14 @@
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
         .prime-actors { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
         
-        .actor-group { display: flex; align-items: center; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
-        .actor-img { width: 44px; height: 44px; border-radius: 22px; margin-left: 10px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
-        .actor-name { padding: 8px 15px; font-size: 20px; border: 3px solid transparent; transition: 0.2s; color: white; }
-        .actor-fav-btn { padding: 8px 12px; font-size: 20px; border: 3px solid transparent; transition: 0.2s; color: white; border-left: 1px solid rgba(255,255,255,0.1); }
-        .actor-name.focused, .actor-fav-btn.focused { border-color: white; background: rgba(255,255,255,0.3); }
+        /* --- FIX: Herz-Button exakt im Darsteller-Design! --- */
+        .actor-group { display: flex; align-items: center; background: rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden; border: 3px solid transparent;}
+        .actor-img { width: 44px; height: 44px; border-radius: 22px; margin-left: 8px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
+        .actor-name { padding: 8px 15px; font-size: 20px; transition: 0.2s; color: white; cursor: pointer; }
+        .actor-fav-btn { padding: 8px 15px; font-size: 20px; transition: 0.2s; color: white; border-left: 2px solid rgba(255,255,255,0.2); cursor: pointer; }
+        
+        .actor-name.focused { background: rgba(255,255,255,0.3); }
+        .actor-fav-btn.focused { background: rgba(255,255,255,0.3); }
         .actor-fav-btn.is-fav { color: #d0383e; font-weight: bold; }
 
         .tag-badge { background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 6px; font-size: 18px; border: 3px solid transparent; transition: 0.2s; }
@@ -110,7 +113,6 @@
         .prime-rec-title span { display: inline-block; will-change: transform; }
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
         .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.9); }
-
 
         /* --- HAUPT GRID INKL. HERO BANNER --- */
         #smart-tv-ui { 
@@ -142,7 +144,6 @@
         
         #grid-hero-aliases { font-size: 18px; color: #aaa; font-style: italic; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* FIX: Hier ist der bereinigte Linter-Fehler! */
         #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
         #grid-hero-btn { 
@@ -185,7 +186,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.4.1</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.4.2</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -227,7 +228,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.4.1";
+        const PLAYER_VERSION = "2.4.2";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -510,6 +511,7 @@
                     target.classList.add('focused');
                     if (data.row >= 3 && data.row <= 4) {
                         target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+                        
                         recPreviewTimer = setTimeout(() => {
                             let v = target.querySelector('video.video-layer');
                             if (v) {
