@@ -80,7 +80,6 @@
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
         .prime-actors { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
         
-        /* --- FIX: Herz-Button exakt im Darsteller-Design! --- */
         .actor-group { display: flex; align-items: center; background: rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden; border: 3px solid transparent;}
         .actor-img { width: 44px; height: 44px; border-radius: 22px; margin-left: 8px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
         .actor-name { padding: 8px 15px; font-size: 20px; transition: 0.2s; color: white; cursor: pointer; }
@@ -101,8 +100,16 @@
         .prime-bar-wrap.focused { border-color: white; transform: scaleY(1.3); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
 
         .prime-controls-row { display: flex; justify-content: center; gap: 50px; padding-bottom: 30px; }
-        .prime-btn { width: 66px; height: 66px; border-radius: 33px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; border: 3px solid transparent; transition: 0.2s; }
+        .prime-btn { width: 66px; height: 66px; border-radius: 33px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; border: 3px solid transparent; transition: 0.2s; position: relative; }
         .prime-btn.focused { border-color: white; background: rgba(255,255,255,0.3); transform: scale(1.15); box-shadow: 0 0 20px rgba(255,255,255,0.8); }
+
+        /* --- NEU: Der gelbe Spinner für die Übersetzung --- */
+        .prime-spinner { 
+            position: absolute; top: -5px; right: -5px; width: 24px; height: 24px; 
+            border: 4px solid rgba(255, 204, 0, 0.3); border-top: 4px solid #ffcc00; 
+            border-radius: 50%; animation: spin 1s linear infinite; display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .prime-recs-grid { display: grid; grid-template-rows: 1fr 1fr; grid-auto-flow: column; gap: 15px; overflow: visible; padding: 10px; height: 280px; }
         .prime-rec-tile { width: 240px; height: 130px; border-radius: 8px; background: #222; overflow: hidden; position: relative; border: 4px solid transparent; transition: 0.2s; }
@@ -143,7 +150,6 @@
         #grid-hero-country { font-size: 22px; color: #a6e3a1; text-shadow: 1px 1px 3px black; white-space: nowrap; }
         
         #grid-hero-aliases { font-size: 18px; color: #aaa; font-style: italic; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
         #grid-hero-btn { 
@@ -186,7 +192,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.4.2</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.0</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -216,7 +222,12 @@
                 <div class="prime-btn" id="prime-row-2-col-0" data-row="2" data-col="0"><svg viewBox="0 0 24 24" width="34" height="34" fill="white"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></div>
                 <div class="prime-btn" id="prime-row-2-col-1" data-row="2" data-col="1"><div id="prime-play-icon"></div></div>
                 <div class="prime-btn" id="prime-row-2-col-2" data-row="2" data-col="2"><div id="prime-fav-icon"></div></div>
-                <div class="prime-btn" id="prime-row-2-col-3" data-row="2" data-col="3"><svg viewBox="0 0 24 24" width="34" height="34" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14H4v-2h8v2zm8 0h-6v-2h6v2zm0-4H4v-2h16v2z"/></svg></div>
+                
+                <!-- --- NEU: Translate Button mit Spinner! --- -->
+                <div class="prime-btn" id="prime-row-2-col-3" data-row="2" data-col="3">
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                    <div id="translate-spinner" class="prime-spinner"></div>
+                </div>
             </div>
         </div>
 
@@ -228,7 +239,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.4.2";
+        const PLAYER_VERSION = "2.5.0";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -252,6 +263,15 @@
         options.customNamespaces = {};
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
         options.disableIdleTimeout = true; 
+
+        // --- NEU: Wir stylen die generierten Untertitel schön groß und lesbar! ---
+        const textTracksStyle = new cast.framework.messages.TextTrackStyle();
+        textTracksStyle.foregroundColor = '#FFFFFF';
+        textTracksStyle.backgroundColor = '#00000000';
+        textTracksStyle.edgeType = cast.framework.messages.TextTrackEdgeType.DROP_SHADOW;
+        textTracksStyle.edgeColor = '#000000';
+        textTracksStyle.fontScale = 1.3;
+        textTracksStyle.fontFamily = 'Arial, sans-serif';
 
         let isPythonSeek = false;
         playerManager.setMessageInterceptor(cast.framework.messages.MessageType.SEEK, request => {
@@ -481,6 +501,16 @@
 
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
+                
+                // --- NEU: Schaltet den Übersetzungs-Spinner an oder aus ---
+                const spinner = document.getElementById('translate-spinner');
+                if (data.is_translating) {
+                    spinner.style.display = 'block';
+                    document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00";
+                } else {
+                    spinner.style.display = 'none';
+                    document.getElementById('prime-row-2-col-3').style.borderColor = "transparent";
+                }
 
                 if (data.rich_actors) {
                     data.rich_actors.forEach((a, i) => {
@@ -662,8 +692,13 @@
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
             else if (data.type === "CONTROL") {
-                if (data.action === "PLAY") playerManager.play();
-                else if (data.action === "PAUSE") playerManager.pause();
+                // --- FIX: Wir blockieren hier alle doppelten Media-Befehle, die der TV schon nativ gemacht hat! ---
+                if (data.action === "PLAY") {
+                    // Mache nichts! Das regelt Python sauber über die Keys!
+                }
+                else if (data.action === "PAUSE") {
+                    // Mache nichts!
+                }
                 
                 else if (data.action === "SEEK") {
                     if (document.body.classList.contains("preset-prime-pro")) {
@@ -736,12 +771,31 @@
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
+                
                 mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
                 mediaInfo.metadata.title = data.title || "Custom Stream";
-                request.media = mediaInfo; request.autoplay = true;
+                
+                // --- NEU: Wenn Python eine VTT Base64 URL schickt, fügen wir sie als aktiven Track hinzu! ---
+                if (data.vtt) {
+                    let textTrack = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
+                    textTrack.trackContentId = data.vtt;
+                    textTrack.trackContentType = 'text/vtt';
+                    textTrack.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
+                    textTrack.name = 'Deutsch (KI)';
+                    textTrack.language = 'de-DE';
+                    
+                    mediaInfo.tracks = [textTrack];
+                    request.activeTrackIds = [1];
+                }
+                
+                request.media = mediaInfo; 
+                request.autoplay = true;
                 if (data.start_time) request.currentTime = data.start_time;
 
                 playerManager.load(request);
+                
+                // Aktiviere unsere dicken Custom-Fonts für Untertitel
+                playerManager.setTextTrackStyle(textTracksStyle);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
