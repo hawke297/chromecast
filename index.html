@@ -111,7 +111,8 @@
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
         .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.9); }
 
-        /* --- HAUPT GRID INKL. NEUEM HERO BANNER --- */
+
+        /* --- HAUPT GRID INKL. HERO BANNER --- */
         #smart-tv-ui { 
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; 
             padding: 60px; box-sizing: border-box; transition: filter 0.4s, opacity 0.3s; overflow-y: auto; overflow-x: hidden;
@@ -120,7 +121,7 @@
         
         #grid-content {
             display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 30px;
-            padding-bottom: 60px; /* Platz am Ende zum Scrollen */
+            padding-bottom: 60px;
         }
         
         #grid-hero-container { 
@@ -140,7 +141,9 @@
         #grid-hero-country { font-size: 22px; color: #a6e3a1; text-shadow: 1px 1px 3px black; white-space: nowrap; }
         
         #grid-hero-aliases { font-size: 18px; color: #aaa; font-style: italic; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        /* FIX: Hier ist der bereinigte Linter-Fehler! */
+        #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
         #grid-hero-btn { 
             background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 20px; font-weight: bold; 
@@ -420,7 +423,6 @@
             else if (data.type === "UPDATE_METADATA") {
                 if (data.title) document.getElementById('prime-title').innerText = data.title;
                 
-                // --- FIX: Erstellt die Darsteller Badges MIT Profilbild ---
                 const actorsDiv = document.getElementById('prime-actors');
                 actorsDiv.innerHTML = "";
                 if (data.actors.length > 0) {
@@ -571,8 +573,6 @@
                 
                 loadingSpinner.style.display = "none";
                 gridUi.style.filter = "none";
-                
-                // --- FIX: Wir zeigen den übergeordneten Scroll-Container! ---
                 gridUi.style.display = 'block'; 
                 
                 if (previewTimer) clearTimeout(previewTimer);
@@ -580,7 +580,6 @@
                 
                 gridContent.innerHTML = ""; 
                 
-                // --- Baut das Hero-Banner als erstes Element in das Grid ---
                 if (data.hero_data) {
                     let favText = data.is_hero_fav ? '★ Als Favorit gespeichert' : '☆ Zu Favoriten hinzufügen';
                     let favClass = data.is_hero_fav ? 'is-fav' : '';
@@ -633,7 +632,6 @@
                     gridContent.insertAdjacentHTML('beforeend', tileHtml);
                     
                     if (isFocused) {
-                        // --- FIX: Fernseher scrollt die fokussierte Kachel selbst geschmeidig ins Bild ---
                         let tile = document.getElementById(data.focus_index === -1 ? 'grid-hero-container' : `grid-tile-${i}`);
                         if (tile) {
                             tile.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'center'});
