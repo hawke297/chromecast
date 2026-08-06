@@ -36,7 +36,6 @@
         }
         body.preset-prime-pro #prime-osd-container { display: block; }
 
-
         /* --- PRIME PROFI OSD --- */
         #prime-osd-container {
             display: none; 
@@ -67,34 +66,30 @@
             display: flex; gap: 10px; flex-wrap: wrap; opacity: 0; justify-content: center;
         }
 
-        /* DEFAULT STATE */
         .prime-meta { transform: translateY(0); opacity: 1; }
         .prime-controls-wrapper { transform: translateY(0) scale(1); opacity: 1; }
         .prime-recs-wrapper { transform: translateY(410px); } 
         .prime-tags-wrapper { transform: translateY(200px); }
 
-        /* FOCUSED STATE */
         #prime-osd-container.recs-focused .prime-meta { transform: translateY(-50px); opacity: 0; }
         #prime-osd-container.recs-focused .prime-controls-wrapper { transform: translateY(40px) scale(0.9); opacity: 0; }
         #prime-osd-container.recs-focused .prime-recs-wrapper { transform: translateY(-200px); } 
         #prime-osd-container.recs-focused .prime-tags-wrapper { transform: translateY(-140px); opacity: 1; } 
 
 
-        /* --- INHALTE: TITEL & NEUE DARSTELLER SPLIT-BUTTONS --- */
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
         .prime-actors { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
         
-        .actor-group { display: flex; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+        .actor-group { display: flex; align-items: center; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+        .actor-img { width: 44px; height: 44px; border-radius: 22px; margin-left: 10px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
         .actor-name { padding: 8px 15px; font-size: 20px; border: 3px solid transparent; transition: 0.2s; color: white; }
-        .actor-fav-btn { padding: 8px 12px; font-size: 20px; background: rgba(0,0,0,0.3); border: 3px solid transparent; transition: 0.2s; color: white; }
+        .actor-fav-btn { padding: 8px 12px; font-size: 20px; border: 3px solid transparent; transition: 0.2s; color: white; border-left: 1px solid rgba(255,255,255,0.1); }
         .actor-name.focused, .actor-fav-btn.focused { border-color: white; background: rgba(255,255,255,0.3); }
         .actor-fav-btn.is-fav { color: #d0383e; font-weight: bold; }
 
-        /* --- TAGS --- */
         .tag-badge { background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 6px; font-size: 18px; border: 3px solid transparent; transition: 0.2s; }
         .tag-badge.focused { border-color: white; background: rgba(255,255,255,0.3); }
         .tag-badge.is-fav { color: #d0383e; }
-
 
         .prime-progress-row { display: flex; align-items: center; padding: 0 80px 25px 80px; gap: 25px; }
         .prime-time { font-family: monospace; font-size: 22px; width: 90px; text-align: center; }
@@ -116,22 +111,43 @@
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
         .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.9); }
 
-
-        /* --- HAUPT GRID INKL. HERO BANNER --- */
-        #smart-tv-ui { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; padding: 60px; box-sizing: border-box; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 30px; transition: transform 0.2s, filter 0.4s, opacity 0.3s; overflow: visible; }
-        
-        /* Das neue Hero Banner nimmt die volle Breite (alle 3 Spalten) ein! */
-        #grid-hero-container { 
-            grid-column: 1 / -1; height: 150px; background: linear-gradient(90deg, #1e1e2e 0%, rgba(30,30,46,0.5) 100%); 
-            border-radius: 12px; display: flex; align-items: center; padding: 20px; 
-            border: 6px solid transparent; transition: 0.2s; position: relative; overflow: hidden;
+        /* --- HAUPT GRID INKL. NEUEM HERO BANNER --- */
+        #smart-tv-ui { 
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; 
+            padding: 60px; box-sizing: border-box; transition: filter 0.4s, opacity 0.3s; overflow-y: auto; overflow-x: hidden;
+            scroll-behavior: smooth;
         }
-        #grid-hero-container.focused { border-color: #d0383e; transform: scale(1.02); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.5); }
-        #grid-hero-img { width: 110px; height: 110px; border-radius: 55px; object-fit: cover; margin-right: 30px; z-index: 2; box-shadow: 0 0 15px black; }
-        .hero-info { z-index: 2; display: flex; align-items: center; width: 100%; }
-        #grid-hero-title { font-size: 38px; font-weight: bold; flex: 1; text-shadow: 2px 2px 5px black; }
-        .hero-btn { background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 22px; font-weight: bold; }
-        .hero-btn.is-fav { color: #d0383e; background: rgba(208,56,62,0.2); }
+        
+        #grid-content {
+            display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 30px;
+            padding-bottom: 60px; /* Platz am Ende zum Scrollen */
+        }
+        
+        #grid-hero-container { 
+            grid-column: 1 / -1; background: linear-gradient(135deg, rgba(30,30,46,0.9) 0%, rgba(30,30,46,0.4) 100%); 
+            border-radius: 12px; display: flex; align-items: stretch; padding: 25px; 
+            border: 6px solid transparent; transition: 0.2s; position: relative; overflow: hidden;
+            min-height: 160px;
+        }
+        #grid-hero-container.focused { border-color: #d0383e; transform: scale(1.01); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.4); }
+        
+        #grid-hero-img { width: 150px; height: 150px; border-radius: 75px; object-fit: cover; margin-right: 30px; z-index: 2; box-shadow: 0 0 20px black; border: 3px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+        
+        .hero-info { z-index: 2; display: flex; flex-direction: column; justify-content: center; flex: 1; overflow: hidden; }
+        
+        .hero-title-row { display: flex; align-items: baseline; gap: 15px; margin-bottom: 5px; }
+        #grid-hero-title { font-size: 42px; font-weight: bold; text-shadow: 2px 2px 5px black; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #grid-hero-country { font-size: 22px; color: #a6e3a1; text-shadow: 1px 1px 3px black; white-space: nowrap; }
+        
+        #grid-hero-aliases { font-size: 18px; color: #aaa; font-style: italic; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        #grid-hero-btn { 
+            background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 20px; font-weight: bold; 
+            align-self: center; margin-left: 30px; flex-shrink: 0; border: 3px solid transparent; text-align: center;
+        }
+        #grid-hero-container.focused #grid-hero-btn { border-color: white; background: rgba(255,255,255,0.2); }
+        #grid-hero-btn.is-fav { color: #d0383e; background: rgba(208,56,62,0.2); }
 
         .grid-tile { background-color: #1e1e2e; border-radius: 12px; overflow: hidden; border: 6px solid transparent; transition: 0.1s; position: relative; height: 280px; display: block; }
         .grid-tile.focused { border-color: #d0383e; transform: scale(1.05); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10; }
@@ -160,13 +176,13 @@
     </style>
 </head>
 <body>
-    <div id="smart-tv-ui"></div>
+    <div id="smart-tv-ui"><div id="grid-content"></div></div>
     <div id="loading-spinner"><svg class="spinner" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></div>
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.4.0</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.4.1</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -208,7 +224,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.4.0";
+        const PLAYER_VERSION = "2.4.1";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -252,6 +268,7 @@
         
         const bgImageElement = document.getElementById('bg-image');
         const gridUi = document.getElementById('smart-tv-ui');
+        const gridContent = document.getElementById('grid-content');
         const loadingSpinner = document.getElementById('loading-spinner');
 
         function sendTelemetry(msg) {
@@ -271,7 +288,7 @@
             document.getElementById('cast-video').style.display = 'none';
             document.body.style.backgroundColor = "#0f0f15";
             bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
-            gridUi.style.display = 'grid';
+            gridUi.style.display = 'block';
             
             if (activeSenderId) {
                 try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
@@ -403,13 +420,16 @@
             else if (data.type === "UPDATE_METADATA") {
                 if (data.title) document.getElementById('prime-title').innerText = data.title;
                 
-                // --- FIX: Erstellt die Split-Buttons für Darsteller ---
+                // --- FIX: Erstellt die Darsteller Badges MIT Profilbild ---
                 const actorsDiv = document.getElementById('prime-actors');
                 actorsDiv.innerHTML = "";
                 if (data.actors.length > 0) {
                     data.actors.forEach((a, i) => {
-                        let html = `<div class="actor-group">
-                            <div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div>
+                        let html = `<div class="actor-group">`;
+                        if (a.img) {
+                            html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
+                        }
+                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div>
                             <div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div>
                         </div>`;
                         actorsDiv.insertAdjacentHTML('beforeend', html);
@@ -418,7 +438,6 @@
                     actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>";
                 }
                 
-                // --- FIX: Erstellt die Badges für Tags ---
                 const tagsDiv = document.getElementById('prime-tags');
                 tagsDiv.innerHTML = "";
                 data.tags.forEach((t, i) => {
@@ -454,15 +473,12 @@
                 if (data.visible) osd.classList.add('osd-visible');
                 else osd.classList.remove('osd-visible');
 
-                // State Shift für Empfehlungen
                 if (data.row >= 3) osd.classList.add('recs-focused');
                 else osd.classList.remove('recs-focused');
 
-                // Standard Controls updaten
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
 
-                // --- FIX: Updated die Fav-Herzen bei Darstellern und Tags ---
                 if (data.rich_actors) {
                     data.rich_actors.forEach((a, i) => {
                         let favBtn = document.getElementById(`prime-row-0-col-${i*2 + 1}`);
@@ -498,7 +514,9 @@
                                 v.style.visibility = "visible";
                                 target.classList.add('is-playing');
                                 let p = v.play(); if (p !== undefined) p.catch(e => {});
-                            } else { target.classList.add('is-playing'); }
+                            } else {
+                                target.classList.add('is-playing');
+                            }
                         }, 700);
                     }
                 }
@@ -553,15 +571,16 @@
                 
                 loadingSpinner.style.display = "none";
                 gridUi.style.filter = "none";
-                gridUi.style.display = 'grid'; 
-                gridUi.style.transform = `translateY(-${data.offset_y}px)`;
+                
+                // --- FIX: Wir zeigen den übergeordneten Scroll-Container! ---
+                gridUi.style.display = 'block'; 
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 
-                gridUi.innerHTML = ""; 
+                gridContent.innerHTML = ""; 
                 
-                // --- FIX: Baut das Hero-Banner als erstes Element in das Grid ---
+                // --- Baut das Hero-Banner als erstes Element in das Grid ---
                 if (data.hero_data) {
                     let favText = data.is_hero_fav ? '★ Als Favorit gespeichert' : '☆ Zu Favoriten hinzufügen';
                     let favClass = data.is_hero_fav ? 'is-fav' : '';
@@ -573,49 +592,68 @@
                         heroHtml += `<img id="grid-hero-img" src="${data.hero_data.img}" onerror="this.style.display='none'">`;
                     }
                     heroHtml += `<div class="hero-info">
-                        <div id="grid-hero-title">${label}: ${data.hero_data.name}</div>
+                        <div class="hero-title-row">
+                            <div id="grid-hero-title">${data.hero_data.name}</div>`;
+                    
+                    if (data.hero_data.country) {
+                        heroHtml += `<div id="grid-hero-country">${data.hero_data.country}</div>`;
+                    }
+                    heroHtml += `</div>`;
+                    
+                    if (data.hero_data.aliases) {
+                        heroHtml += `<div id="grid-hero-aliases">Auch bekannt als: ${data.hero_data.aliases}</div>`;
+                    }
+                    if (data.hero_data.bio) {
+                        heroHtml += `<div id="grid-hero-bio">${data.hero_data.bio}</div>`;
+                    }
+                    
+                    heroHtml += `</div>
                         <div id="grid-hero-btn" class="hero-btn ${favClass}">${favText}</div>
-                    </div></div>`;
-                    gridUi.insertAdjacentHTML('beforeend', heroHtml);
+                    </div>`;
+                    gridContent.insertAdjacentHTML('beforeend', heroHtml);
                 }
                 
                 for(let i=0; i<data.items.length; i++) {
                     let item = data.items[i]; 
                     
-                    let global_idx = i + data.start_idx;
-                    let isFocused = (global_idx === data.focus_index);
+                    let isFocused = (i === data.focus_index);
                     let focusCls = isFocused ? ' focused' : '';
                     
-                    let tileHtml = `<div class="grid-tile${focusCls}" id="grid-tile-${global_idx}">`;
+                    let tileHtml = `<div class="grid-tile${focusCls}" id="grid-tile-${i}">`;
                     tileHtml += `<div class="media-container">`;
                     
                     let imageSrc = item.image || item.video_preview;
                     if (imageSrc) tileHtml += `<img class="media-layer" src="${imageSrc}">`;
                     
                     if (isFocused && item.video_preview) {
-                        // Video element prepared
                         tileHtml += `<video class="video-layer" src="${item.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
                     }
                     
                     tileHtml += `</div><div class="title-container"><span>${item.title}</span></div></div>`;
-                    gridUi.insertAdjacentHTML('beforeend', tileHtml);
+                    gridContent.insertAdjacentHTML('beforeend', tileHtml);
                     
-                    if (isFocused && item.video_preview) {
-                        previewTimer = setTimeout(() => {
-                            let tile = document.getElementById(`grid-tile-${global_idx}`);
-                            if (tile) {
-                                let v = tile.querySelector('video');
-                                if (v) {
-                                    v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
-                                    let p = v.play(); if (p !== undefined) p.catch(e => {});
+                    if (isFocused) {
+                        // --- FIX: Fernseher scrollt die fokussierte Kachel selbst geschmeidig ins Bild ---
+                        let tile = document.getElementById(data.focus_index === -1 ? 'grid-hero-container' : `grid-tile-${i}`);
+                        if (tile) {
+                            tile.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'center'});
+                        }
+                        
+                        if (item.video_preview) {
+                            previewTimer = setTimeout(() => {
+                                if (tile) {
+                                    let v = tile.querySelector('video');
+                                    if (v) {
+                                        v.onplaying = function() { v.style.visibility = "visible"; tile.classList.add('is-playing'); };
+                                        let p = v.play(); if (p !== undefined) p.catch(e => {});
+                                    }
                                 }
-                            }
-                        }, 700); 
-                    } else if (isFocused) {
-                        previewTimer = setTimeout(() => { 
-                            let tile = document.getElementById(`grid-tile-${global_idx}`);
-                            if (tile) tile.classList.add('is-playing'); 
-                        }, 700);
+                            }, 700); 
+                        } else {
+                            previewTimer = setTimeout(() => { 
+                                if (tile) tile.classList.add('is-playing'); 
+                            }, 700);
+                        }
                     }
                 }
             }
