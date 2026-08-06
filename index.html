@@ -36,7 +36,7 @@
         }
         body.preset-prime-pro #prime-osd-container { display: block; }
 
-        /* --- PRIME PROFI OSD (Perfektes Peek-Layout) --- */
+        /* --- PRIME PROFI OSD --- */
         #prime-osd-container {
             display: none; 
             position: absolute; bottom: 0; left: 0; width: 100vw; height: 100vh;
@@ -47,7 +47,7 @@
 
         #prime-osd-container.osd-visible { opacity: 1; }
 
-        /* ABSOLUTE EBENEN */
+        /* FIX: Sichere, absolute Koordinaten von unten (bottom) */
         .prime-meta {
             position: absolute; top: 120px; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
@@ -58,7 +58,7 @@
             transform-origin: bottom center;
         }
         .prime-recs-wrapper {
-            position: absolute; bottom: 120px; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
+            position: absolute; bottom: 160px; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         .prime-tags-wrapper {
@@ -67,21 +67,17 @@
             display: flex; gap: 10px; flex-wrap: wrap; opacity: 0; justify-content: center;
         }
 
-        /* DEFAULT STATE (Controls aktiv, Recs als 60px "Peek") */
+        /* DEFAULT STATE (Controls aktiv, Recs als 30px "Peek") */
         .prime-meta { transform: translateY(0); opacity: 1; }
         .prime-controls-wrapper { transform: translateY(0) scale(1); opacity: 1; }
-        /* Grid ist 280px hoch. Wir schieben es 340px nach unten, dadurch ragt nur der obere Rand (der Peek) über den Bildschirmrand! */
-        .prime-recs-wrapper { transform: translateY(340px); } 
+        .prime-recs-wrapper { transform: translateY(410px); } 
         .prime-tags-wrapper { transform: translateY(200px); }
 
         /* FOCUSED STATE (Empfehlungen aktiv in der Mitte) */
         #prime-osd-container.recs-focused .prime-meta { transform: translateY(-50px); opacity: 0; }
         #prime-osd-container.recs-focused .prime-controls-wrapper { transform: translateY(40px) scale(0.9); opacity: 0; }
-        /* Zieht die Empfehlungen prominent nach oben in die Bildmitte */
         #prime-osd-container.recs-focused .prime-recs-wrapper { transform: translateY(0); } 
-        /* Zieht Tags direkt unter die Empfehlungen */
         #prime-osd-container.recs-focused .prime-tags-wrapper { transform: translateY(0); opacity: 1; } 
-
 
         /* INHALTE DER EBENEN */
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
@@ -186,7 +182,7 @@
 
     <script>
         const PLAYER_VERSION = "2.3.3";
-        // Version beim Start 5 Sekunden zeigen und dann als Fallback verstecken
+        // FIX: Version beim Start 5 Sekunden zeigen und dann hart verstecken!
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -251,12 +247,17 @@
             bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
             gridUi.style.display = 'grid';
             
-            // --- FIX: ERROR 102 ---
-            // Wenn der interne TV-Player abschmiert (102 Network Error etc.), zwingen 
-            // wir die PC App durch einen simulierten ZURÜCK-Befehl dazu, das Video zu vergessen 
-            // und sich sauber mit dem angezeigten Grid zu synchronisieren!
             if (activeSenderId) {
                 try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
+            }
+        });
+
+        // --- FIX: Erfasst, wenn das Video von allein zu Ende läuft ---
+        playerManager.addEventListener(cast.framework.events.EventType.MEDIA_STATUS, (event) => {
+            if (event.mediaStatus && event.mediaStatus.idleReason === 'FINISHED') {
+                if (activeSenderId) {
+                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" }); } catch(e) {}
+                }
             }
         });
 
