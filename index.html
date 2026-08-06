@@ -36,8 +36,7 @@
         }
         body.preset-prime-pro #prime-osd-container { display: block; }
 
-
-        /* --- NEU: PRIME PROFI OSD (Perfektes Peek-Layout) --- */
+        /* --- PRIME PROFI OSD (Perfektes Peek-Layout) --- */
         #prime-osd-container {
             display: none; 
             position: absolute; bottom: 0; left: 0; width: 100vw; height: 100vh;
@@ -54,34 +53,34 @@
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
         }
         .prime-controls-wrapper {
-            position: absolute; bottom: 80px; left: 0; width: 100%; box-sizing: border-box;
+            position: absolute; bottom: 120px; left: 0; width: 100%; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
             transform-origin: bottom center;
         }
         .prime-recs-wrapper {
-            position: absolute; bottom: 0; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
+            position: absolute; bottom: 120px; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         .prime-tags-wrapper {
-            position: absolute; bottom: 0; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
+            position: absolute; bottom: 40px; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
             display: flex; gap: 10px; flex-wrap: wrap; opacity: 0; justify-content: center;
         }
 
-        /* DEFAULT STATE (Controls aktiv, Recs als 30px "Peek") */
+        /* DEFAULT STATE (Controls aktiv, Recs als 60px "Peek") */
         .prime-meta { transform: translateY(0); opacity: 1; }
         .prime-controls-wrapper { transform: translateY(0) scale(1); opacity: 1; }
-        /* Grid ist 280px hoch. Wir schieben es 250px runter -> 30px schauen noch raus! */
-        .prime-recs-wrapper { transform: translateY(250px); } 
-        .prime-tags-wrapper { transform: translateY(300px); }
+        /* Grid ist 280px hoch. Wir schieben es 340px nach unten, dadurch ragt nur der obere Rand (der Peek) über den Bildschirmrand! */
+        .prime-recs-wrapper { transform: translateY(340px); } 
+        .prime-tags-wrapper { transform: translateY(200px); }
 
         /* FOCUSED STATE (Empfehlungen aktiv in der Mitte) */
         #prime-osd-container.recs-focused .prime-meta { transform: translateY(-50px); opacity: 0; }
         #prime-osd-container.recs-focused .prime-controls-wrapper { transform: translateY(40px) scale(0.9); opacity: 0; }
         /* Zieht die Empfehlungen prominent nach oben in die Bildmitte */
-        #prime-osd-container.recs-focused .prime-recs-wrapper { transform: translateY(-160px); } 
+        #prime-osd-container.recs-focused .prime-recs-wrapper { transform: translateY(0); } 
         /* Zieht Tags direkt unter die Empfehlungen */
-        #prime-osd-container.recs-focused .prime-tags-wrapper { transform: translateY(-80px); opacity: 1; } 
+        #prime-osd-container.recs-focused .prime-tags-wrapper { transform: translateY(0); opacity: 1; } 
 
 
         /* INHALTE DER EBENEN */
@@ -144,7 +143,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display">hawke297 player | v2.3.2</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.3.3</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -186,9 +185,12 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.3.2";
-        document.getElementById('version-display').style.display = 'none';
-        document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
+        const PLAYER_VERSION = "2.3.3";
+        // Version beim Start 5 Sekunden zeigen und dann als Fallback verstecken
+        setTimeout(() => {
+            const vDisp = document.getElementById('version-display');
+            if (vDisp) vDisp.style.display = 'none';
+        }, 5000);
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
@@ -248,6 +250,14 @@
             document.body.style.backgroundColor = "#0f0f15";
             bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
             gridUi.style.display = 'grid';
+            
+            // --- FIX: ERROR 102 ---
+            // Wenn der interne TV-Player abschmiert (102 Network Error etc.), zwingen 
+            // wir die PC App durch einen simulierten ZURÜCK-Befehl dazu, das Video zu vergessen 
+            // und sich sauber mit dem angezeigten Grid zu synchronisieren!
+            if (activeSenderId) {
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
+            }
         });
 
         function showNotification(text, config) {
