@@ -17,6 +17,15 @@
         #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
         .notification-box { position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8); opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold; }
         
+        /* --- FIX: Ultimativer CSS-Fallback für Untertitel --- */
+        ::cue {
+            color: #FFFFFF;
+            background-color: transparent;
+            text-shadow: 2px 2px 4px #000000, 0px 0px 10px #000000;
+            font-size: 130%;
+            font-family: Arial, sans-serif;
+        }
+
         /* ALTE UI ELEMENTE */
         #clock-ui, #title-ui, #progress-ui, h1 { z-index: 9998; text-shadow: var(--ui-text-shadow); }
         h1 { position: absolute; top: 20px; left: 20px; font-size: 18px; color: gray; }
@@ -103,7 +112,6 @@
         .prime-btn { width: 66px; height: 66px; border-radius: 33px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; border: 3px solid transparent; transition: 0.2s; position: relative; }
         .prime-btn.focused { border-color: white; background: rgba(255,255,255,0.3); transform: scale(1.15); box-shadow: 0 0 20px rgba(255,255,255,0.8); }
 
-        /* --- NEU: Der gelbe Spinner für die Übersetzung --- */
         .prime-spinner { 
             position: absolute; top: -5px; right: -5px; width: 24px; height: 24px; 
             border: 4px solid rgba(255, 204, 0, 0.3); border-top: 4px solid #ffcc00; 
@@ -192,7 +200,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.0</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.1</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -223,7 +231,6 @@
                 <div class="prime-btn" id="prime-row-2-col-1" data-row="2" data-col="1"><div id="prime-play-icon"></div></div>
                 <div class="prime-btn" id="prime-row-2-col-2" data-row="2" data-col="2"><div id="prime-fav-icon"></div></div>
                 
-                <!-- --- NEU: Translate Button mit Spinner! --- -->
                 <div class="prime-btn" id="prime-row-2-col-3" data-row="2" data-col="3">
                     <svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
                     <div id="translate-spinner" class="prime-spinner"></div>
@@ -239,7 +246,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.0";
+        const PLAYER_VERSION = "2.5.1";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -264,7 +271,6 @@
         options.customNamespaces[CUSTOM_CHANNEL] = cast.framework.system.MessageType.JSON;
         options.disableIdleTimeout = true; 
 
-        // --- NEU: Wir stylen die generierten Untertitel schön groß und lesbar! ---
         const textTracksStyle = new cast.framework.messages.TextTrackStyle();
         textTracksStyle.foregroundColor = '#FFFFFF';
         textTracksStyle.backgroundColor = '#00000000';
@@ -502,7 +508,6 @@
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
                 
-                // --- NEU: Schaltet den Übersetzungs-Spinner an oder aus ---
                 const spinner = document.getElementById('translate-spinner');
                 if (data.is_translating) {
                     spinner.style.display = 'block';
@@ -692,13 +697,8 @@
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
             else if (data.type === "CONTROL") {
-                // --- FIX: Wir blockieren hier alle doppelten Media-Befehle, die der TV schon nativ gemacht hat! ---
-                if (data.action === "PLAY") {
-                    // Mache nichts! Das regelt Python sauber über die Keys!
-                }
-                else if (data.action === "PAUSE") {
-                    // Mache nichts!
-                }
+                if (data.action === "PLAY") playerManager.play();
+                else if (data.action === "PAUSE") playerManager.pause();
                 
                 else if (data.action === "SEEK") {
                     if (document.body.classList.contains("preset-prime-pro")) {
@@ -775,7 +775,6 @@
                 mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
                 mediaInfo.metadata.title = data.title || "Custom Stream";
                 
-                // --- NEU: Wenn Python eine VTT Base64 URL schickt, fügen wir sie als aktiven Track hinzu! ---
                 if (data.vtt) {
                     let textTrack = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
                     textTrack.trackContentId = data.vtt;
@@ -792,10 +791,17 @@
                 request.autoplay = true;
                 if (data.start_time) request.currentTime = data.start_time;
 
+                // --- FIX: Sicheres Setzen des Styles (Gefixter Absturz) ---
+                try {
+                    const textTracksManager = playerManager.getTextTracksManager();
+                    if (textTracksManager) {
+                        textTracksManager.setTextTrackStyle(textTracksStyle);
+                    }
+                } catch(e) {
+                    console.warn("Konnte TrackStyle über API nicht setzen, nutze CSS Fallback.");
+                }
+
                 playerManager.load(request);
-                
-                // Aktiviere unsere dicken Custom-Fonts für Untertitel
-                playerManager.setTextTrackStyle(textTracksStyle);
 
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
@@ -834,4 +840,4 @@
         context.start(options);
     </script>
 </body>
-</html> 
+</html>
