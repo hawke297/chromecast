@@ -63,7 +63,6 @@
             transform-origin: bottom center;
         }
         
-        /* --- NEU: Das CC Auswahlmenü --- */
         .prime-cc-menu-wrapper {
             position: absolute; bottom: 15px; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
@@ -209,7 +208,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.2</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -247,16 +246,16 @@
             </div>
         </div>
 
-        <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
-        
-        <!-- --- NEU: OSD Reihe 6 für CC --- -->
+        <!-- --- FIX: Row 3 = CC Menü --- -->
         <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
-            <div class="tag-badge" id="prime-row-6-col-0">CC: Aus</div>
-            <div class="tag-badge" id="prime-row-6-col-1">Englisch (KI)</div>
-            <div class="tag-badge" id="prime-row-6-col-2">Deutsch (KI)</div>
-            <div class="tag-badge" id="prime-row-6-col-3">⟳ Neu generieren</div>
+            <div class="tag-badge" id="prime-row-3-col-0">CC: Aus</div>
+            <div class="tag-badge" id="prime-row-3-col-1">Englisch (KI)</div>
+            <div class="tag-badge" id="prime-row-3-col-2">Deutsch (KI)</div>
+            <div class="tag-badge" id="prime-row-3-col-3">⟳ Neu generieren</div>
         </div>
 
+        <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
+        
         <div class="prime-tags-wrapper" id="prime-tags"></div>
         
     </div>
@@ -264,7 +263,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.2";
+        const PLAYER_VERSION = "2.5.3";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -489,14 +488,15 @@
                 const tagsDiv = document.getElementById('prime-tags');
                 tagsDiv.innerHTML = "";
                 data.tags.forEach((t, i) => {
-                    let html = `<div class="tag-badge" id="prime-row-5-col-${i}">${t.name}</div>`;
+                    let html = `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`;
                     tagsDiv.insertAdjacentHTML('beforeend', html);
                 });
 
                 const recsDiv = document.getElementById('prime-recs-grid');
                 recsDiv.innerHTML = "";
                 data.recs.forEach((rec, i) => {
-                    let row = (i % 2) + 3; let col = Math.floor(i / 2);
+                    let row = (i % 2) + 4; // Row 4 (Top) und Row 5 (Bottom)
+                    let col = Math.floor(i / 2);
                     let d = document.createElement('div');
                     d.className = "prime-rec-tile";
                     d.id = `prime-row-${row}-col-${col}`;
@@ -521,11 +521,12 @@
                 if (data.visible) osd.classList.add('osd-visible');
                 else osd.classList.remove('osd-visible');
 
-                if (data.row >= 3 && data.row <= 4) osd.classList.add('recs-focused');
+                // --- FIX: Row 4 und 5 sind jetzt die Recs ---
+                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused');
                 else osd.classList.remove('recs-focused');
                 
-                // --- FIX: Schaltet die CC Reihe auf sichtbar! ---
-                if (data.row === 6) osd.classList.add('cc-focused');
+                // --- FIX: Row 3 ist jetzt das CC Menü ---
+                if (data.row === 3) osd.classList.add('cc-focused');
                 else osd.classList.remove('cc-focused');
 
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
@@ -551,22 +552,21 @@
                 }
                 if (data.rich_tags) {
                     data.rich_tags.forEach((t, i) => {
-                        let tagBtn = document.getElementById(`prime-row-5-col-${i}`);
+                        let tagBtn = document.getElementById(`prime-row-6-col-${i}`);
                         if (tagBtn) {
                             if (t.is_fav) tagBtn.classList.add('is-fav'); else tagBtn.classList.remove('is-fav');
                         }
                     });
                 }
 
-                // --- FIX: Hebt die aktiven Sprachen im CC Menü hervor! ---
                 let cols = [0, 1, 2, 3];
                 cols.forEach(c => {
-                    let b = document.getElementById(`prime-row-6-col-${c}`);
+                    let b = document.getElementById(`prime-row-3-col-${c}`);
                     if (b) b.classList.remove('is-active-cc');
                 });
-                if (data.active_cc === "off" && document.getElementById('prime-row-6-col-0')) document.getElementById('prime-row-6-col-0').classList.add('is-active-cc');
-                if (data.active_cc === "en" && document.getElementById('prime-row-6-col-1')) document.getElementById('prime-row-6-col-1').classList.add('is-active-cc');
-                if (data.active_cc === "de" && document.getElementById('prime-row-6-col-2')) document.getElementById('prime-row-6-col-2').classList.add('is-active-cc');
+                if (data.active_cc === "off" && document.getElementById('prime-row-3-col-0')) document.getElementById('prime-row-3-col-0').classList.add('is-active-cc');
+                if (data.active_cc === "en" && document.getElementById('prime-row-3-col-1')) document.getElementById('prime-row-3-col-1').classList.add('is-active-cc');
+                if (data.active_cc === "de" && document.getElementById('prime-row-3-col-2')) document.getElementById('prime-row-3-col-2').classList.add('is-active-cc');
 
 
                 document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
@@ -578,7 +578,7 @@
                 const target = document.getElementById(`prime-row-${data.row}-col-${data.col}`);
                 if (target) {
                     target.classList.add('focused');
-                    if (data.row >= 3 && data.row <= 4) {
+                    if (data.row >= 4 && data.row <= 5) {
                         target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
                         
                         recPreviewTimer = setTimeout(() => {
@@ -734,7 +734,6 @@
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
                 
-                // --- FIX: Live CC Switching ohne Video-Neuladen! ---
                 else if (data.action === "SET_CC") {
                     let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
                     if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
@@ -819,7 +818,6 @@
                 mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
                 mediaInfo.metadata.title = data.title || "Custom Stream";
                 
-                // --- FIX: Wir laden beide KI Spuren in den Speicher des TVs ---
                 let tracks = [];
                 if (data.vtt_en) {
                     let trackEn = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
@@ -840,7 +838,6 @@
                 
                 if (tracks.length > 0) mediaInfo.tracks = tracks;
                 
-                // Die beim Start gewünschte Spur sofort aktivieren
                 if (data.active_cc === "en" && data.vtt_en) request.activeTrackIds = [1];
                 else if (data.active_cc === "de" && data.vtt_de) request.activeTrackIds = [2];
                 else request.activeTrackIds = [];
