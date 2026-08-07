@@ -17,13 +17,10 @@
         #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
         .notification-box { position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8); opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold; }
         
-        /* --- FIX: Ultimativer CSS-Fallback für Untertitel --- */
         ::cue {
-            color: #FFFFFF;
-            background-color: transparent;
+            color: #FFFFFF; background-color: transparent;
             text-shadow: 2px 2px 4px #000000, 0px 0px 10px #000000;
-            font-size: 130%;
-            font-family: Arial, sans-serif;
+            font-size: 130%; font-family: Arial, sans-serif;
         }
 
         /* ALTE UI ELEMENTE */
@@ -65,6 +62,15 @@
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
             transform-origin: bottom center;
         }
+        
+        /* --- NEU: Das CC Auswahlmenü --- */
+        .prime-cc-menu-wrapper {
+            position: absolute; bottom: 15px; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
+            display: flex; gap: 15px; flex-wrap: wrap; opacity: 0; justify-content: center;
+            transform: translateY(100px);
+        }
+
         .prime-recs-wrapper {
             position: absolute; bottom: 160px; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -84,7 +90,9 @@
         #prime-osd-container.recs-focused .prime-controls-wrapper { transform: translateY(40px) scale(0.9); opacity: 0; }
         #prime-osd-container.recs-focused .prime-recs-wrapper { transform: translateY(-200px); } 
         #prime-osd-container.recs-focused .prime-tags-wrapper { transform: translateY(-140px); opacity: 1; } 
-
+        
+        #prime-osd-container.cc-focused .prime-controls-wrapper { transform: translateY(-40px) scale(0.9); opacity: 1; }
+        #prime-osd-container.cc-focused .prime-cc-menu-wrapper { transform: translateY(0); opacity: 1; }
 
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
         .prime-actors { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -101,6 +109,7 @@
         .tag-badge { background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 6px; font-size: 18px; border: 3px solid transparent; transition: 0.2s; }
         .tag-badge.focused { border-color: white; background: rgba(255,255,255,0.3); }
         .tag-badge.is-fav { color: #d0383e; }
+        .tag-badge.is-active-cc { background: #d0383e; color: white; font-weight: bold; }
 
         .prime-progress-row { display: flex; align-items: center; padding: 0 80px 25px 80px; gap: 25px; }
         .prime-time { font-family: monospace; font-size: 22px; width: 90px; text-align: center; }
@@ -200,7 +209,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.1</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.2</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -239,6 +248,15 @@
         </div>
 
         <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
+        
+        <!-- --- NEU: OSD Reihe 6 für CC --- -->
+        <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
+            <div class="tag-badge" id="prime-row-6-col-0">CC: Aus</div>
+            <div class="tag-badge" id="prime-row-6-col-1">Englisch (KI)</div>
+            <div class="tag-badge" id="prime-row-6-col-2">Deutsch (KI)</div>
+            <div class="tag-badge" id="prime-row-6-col-3">⟳ Neu generieren</div>
+        </div>
+
         <div class="prime-tags-wrapper" id="prime-tags"></div>
         
     </div>
@@ -246,7 +264,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.1";
+        const PLAYER_VERSION = "2.5.2";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -424,6 +442,7 @@
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 document.getElementById('prime-osd-container').classList.remove('osd-visible');
                 document.getElementById('prime-osd-container').classList.remove('recs-focused');
+                document.getElementById('prime-osd-container').classList.remove('cc-focused');
                 
                 gridUi.style.display = 'none'; gridUi.style.filter = 'none';
                 document.body.style.backgroundColor = "#000000";
@@ -502,8 +521,12 @@
                 if (data.visible) osd.classList.add('osd-visible');
                 else osd.classList.remove('osd-visible');
 
-                if (data.row >= 3) osd.classList.add('recs-focused');
+                if (data.row >= 3 && data.row <= 4) osd.classList.add('recs-focused');
                 else osd.classList.remove('recs-focused');
+                
+                // --- FIX: Schaltet die CC Reihe auf sichtbar! ---
+                if (data.row === 6) osd.classList.add('cc-focused');
+                else osd.classList.remove('cc-focused');
 
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
@@ -534,6 +557,17 @@
                         }
                     });
                 }
+
+                // --- FIX: Hebt die aktiven Sprachen im CC Menü hervor! ---
+                let cols = [0, 1, 2, 3];
+                cols.forEach(c => {
+                    let b = document.getElementById(`prime-row-6-col-${c}`);
+                    if (b) b.classList.remove('is-active-cc');
+                });
+                if (data.active_cc === "off" && document.getElementById('prime-row-6-col-0')) document.getElementById('prime-row-6-col-0').classList.add('is-active-cc');
+                if (data.active_cc === "en" && document.getElementById('prime-row-6-col-1')) document.getElementById('prime-row-6-col-1').classList.add('is-active-cc');
+                if (data.active_cc === "de" && document.getElementById('prime-row-6-col-2')) document.getElementById('prime-row-6-col-2').classList.add('is-active-cc');
+
 
                 document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
                 
@@ -700,6 +734,16 @@
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
                 
+                // --- FIX: Live CC Switching ohne Video-Neuladen! ---
+                else if (data.action === "SET_CC") {
+                    let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
+                    if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
+                    else if (data.value === "de") tracksInfoRequest.activeTrackIds = [2];
+                    else tracksInfoRequest.activeTrackIds = []; 
+                    
+                    try { playerManager.editTracksInfo(tracksInfoRequest); } catch(e) {}
+                }
+                
                 else if (data.action === "SEEK") {
                     if (document.body.classList.contains("preset-prime-pro")) {
                         let dur = playerManager.getDurationSec() || 0;
@@ -775,31 +819,40 @@
                 mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
                 mediaInfo.metadata.title = data.title || "Custom Stream";
                 
-                if (data.vtt) {
-                    let textTrack = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
-                    textTrack.trackContentId = data.vtt;
-                    textTrack.trackContentType = 'text/vtt';
-                    textTrack.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
-                    textTrack.name = 'Deutsch (KI)';
-                    textTrack.language = 'de-DE';
-                    
-                    mediaInfo.tracks = [textTrack];
-                    request.activeTrackIds = [1];
+                // --- FIX: Wir laden beide KI Spuren in den Speicher des TVs ---
+                let tracks = [];
+                if (data.vtt_en) {
+                    let trackEn = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
+                    trackEn.trackContentId = data.vtt_en;
+                    trackEn.trackContentType = 'text/vtt';
+                    trackEn.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
+                    trackEn.name = 'Englisch (KI)'; trackEn.language = 'en-US';
+                    tracks.push(trackEn);
                 }
+                if (data.vtt_de) {
+                    let trackDe = new cast.framework.messages.Track(2, cast.framework.messages.TrackType.TEXT);
+                    trackDe.trackContentId = data.vtt_de;
+                    trackDe.trackContentType = 'text/vtt';
+                    trackDe.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
+                    trackDe.name = 'Deutsch (KI)'; trackDe.language = 'de-DE';
+                    tracks.push(trackDe);
+                }
+                
+                if (tracks.length > 0) mediaInfo.tracks = tracks;
+                
+                // Die beim Start gewünschte Spur sofort aktivieren
+                if (data.active_cc === "en" && data.vtt_en) request.activeTrackIds = [1];
+                else if (data.active_cc === "de" && data.vtt_de) request.activeTrackIds = [2];
+                else request.activeTrackIds = [];
                 
                 request.media = mediaInfo; 
                 request.autoplay = true;
                 if (data.start_time) request.currentTime = data.start_time;
 
-                // --- FIX: Sicheres Setzen des Styles (Gefixter Absturz) ---
                 try {
                     const textTracksManager = playerManager.getTextTracksManager();
-                    if (textTracksManager) {
-                        textTracksManager.setTextTrackStyle(textTracksStyle);
-                    }
-                } catch(e) {
-                    console.warn("Konnte TrackStyle über API nicht setzen, nutze CSS Fallback.");
-                }
+                    if (textTracksManager) textTracksManager.setTextTrackStyle(textTracksStyle);
+                } catch(e) {}
 
                 playerManager.load(request);
 
