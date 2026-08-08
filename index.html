@@ -4,46 +4,86 @@
     <title>hawke297 Custom Player</title>
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
+        /* --- LEGACY CSS (Unantastbar) --- */
         :root {
-            --clock-display: block; --clock-color: #eeeeee; --progress-color: #e50914;
-            --ui-bg-color: transparent; --ui-border: none; 
+            --clock-display: block;
+            --clock-color: #eeeeee;
+            --progress-color: #e50914;
+            --ui-bg-color: transparent; 
+            --ui-border: none; 
             --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
+            --ui-box-shadow: none; 
+            --ui-bottom-offset: 0px; 
+            --ui-side-margin: 0px; 
+            --ui-border-radius: 0px; 
+            --title-display: block;
         }
 
-        body { background-color: #0f0f15; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; transition: background-color 0.3s; }
+        body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; transition: background-color 0.3s; }
         #bg-image { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; opacity: 0; transition: opacity 1s ease-in-out; }
         #cast-video { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
+        h1 { position: absolute; top: 20px; left: 20px; z-index: 9999; text-shadow: 2px 2px 4px #000000; font-size: 18px; color: gray; }
         
         #notification-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
-        .notification-box { position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8); opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold; }
+        .notification-box {
+            position: absolute; padding: 20px 30px; font-size: 24px; border-radius: 12px; 
+            box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.8);
+            opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center; font-weight: bold;
+        }
         
+        #clock-ui {
+            position: absolute; top: 30px; left: 30px; 
+            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            color: var(--clock-color); padding: 10px 20px; font-size: 28px; font-weight: bold; font-family: monospace;
+            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
+            display: var(--clock-display);
+        }
+
+        #title-ui {
+            position: absolute; 
+            top: 30px; left: 50%; transform: translateX(-50%); 
+            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            color: white; padding: 10px 30px; font-size: 24px; font-weight: bold; 
+            z-index: 9998; border-radius: 12px; text-shadow: var(--ui-text-shadow); opacity: 0; transition: opacity 0.5s ease-in-out;
+            display: var(--title-display);
+        }
+
+        #progress-ui {
+            position: absolute; 
+            bottom: var(--ui-bottom-offset); 
+            left: var(--ui-side-margin); 
+            right: var(--ui-side-margin);
+            border-radius: var(--ui-border-radius);
+            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            padding: 15px 20px; z-index: 9998; opacity: 0; transition: all 0.3s ease-in-out;
+        }
+        
+        .ui-visible { opacity: 1 !important; }
+        
+        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        #status-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
+        #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
+        
+        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
+        
+        #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
+        .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
+        
+        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
+
+
+        /* --- NEU: V2.5+ CC und Prime Pro CSS --- */
         ::cue {
             color: #FFFFFF; background-color: transparent;
             text-shadow: 2px 2px 4px #000000, 0px 0px 10px #000000;
             font-size: 130%; font-family: Arial, sans-serif;
         }
 
-        /* ALTE UI ELEMENTE */
-        #clock-ui, #title-ui, #progress-ui, h1 { z-index: 9998; text-shadow: var(--ui-text-shadow); }
-        h1 { position: absolute; top: 20px; left: 20px; font-size: 18px; color: gray; }
-        #clock-ui { position: absolute; top: 30px; left: 30px; padding: 10px 20px; font-size: 28px; font-weight: bold; opacity: 0; }
-        #title-ui { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); padding: 10px 30px; font-size: 24px; font-weight: bold; opacity: 0; }
-        #progress-ui { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; opacity: 0; transition: opacity 0.3s; }
-        #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #status-icon { width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
-        #progress-text { font-size: 20px; font-weight: bold; font-family: monospace; }
-        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border-radius: 4px; position: relative; overflow: hidden; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; border-radius: 4px; position: relative; z-index: 2;}
-        #markers-container { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; z-index: 1;}
-        .ui-visible { opacity: 1 !important; }
-
-        /* --- PRESET SWITCH LOGIK --- */
         body.preset-prime-pro #clock-ui, body.preset-prime-pro #title-ui, body.preset-prime-pro #progress-ui, body.preset-prime-pro h1 {
             display: none !important;
         }
         body.preset-prime-pro #prime-osd-container { display: block; }
 
-        /* --- PRIME PROFI OSD --- */
         #prime-osd-container {
             display: none; 
             position: absolute; bottom: 0; left: 0; width: 100vw; height: 100vh;
@@ -63,14 +103,11 @@
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
             transform-origin: bottom center;
         }
-        
         .prime-cc-menu-wrapper {
             position: absolute; bottom: 15px; left: 0; width: 100%; padding: 0 80px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
-            display: flex; gap: 15px; flex-wrap: wrap; opacity: 0; justify-content: center;
-            transform: translateY(100px);
+            display: flex; gap: 15px; flex-wrap: wrap; opacity: 0; justify-content: center; transform: translateY(100px);
         }
-
         .prime-recs-wrapper {
             position: absolute; bottom: 160px; left: 0; width: 100%; padding: 0 50px; box-sizing: border-box;
             transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -96,14 +133,11 @@
 
         .prime-title { font-size: 38px; font-weight: bold; margin: 0 0 10px 0; text-shadow: 2px 2px 5px black; }
         .prime-actors { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
-        
         .actor-group { display: flex; align-items: center; background: rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden; border: 3px solid transparent;}
         .actor-img { width: 44px; height: 44px; border-radius: 22px; margin-left: 8px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
         .actor-name { padding: 8px 15px; font-size: 20px; transition: 0.2s; color: white; cursor: pointer; }
         .actor-fav-btn { padding: 8px 15px; font-size: 20px; transition: 0.2s; color: white; border-left: 2px solid rgba(255,255,255,0.2); cursor: pointer; }
-        
-        .actor-name.focused { background: rgba(255,255,255,0.3); }
-        .actor-fav-btn.focused { background: rgba(255,255,255,0.3); }
+        .actor-name.focused, .actor-fav-btn.focused { border-color: white; background: rgba(255,255,255,0.3); }
         .actor-fav-btn.is-fav { color: #d0383e; font-weight: bold; }
 
         .tag-badge { background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 6px; font-size: 18px; border: 3px solid transparent; transition: 0.2s; }
@@ -121,11 +155,7 @@
         .prime-btn { width: 66px; height: 66px; border-radius: 33px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; border: 3px solid transparent; transition: 0.2s; position: relative; }
         .prime-btn.focused { border-color: white; background: rgba(255,255,255,0.3); transform: scale(1.15); box-shadow: 0 0 20px rgba(255,255,255,0.8); }
 
-        .prime-spinner { 
-            position: absolute; top: -5px; right: -5px; width: 24px; height: 24px; 
-            border: 4px solid rgba(255, 204, 0, 0.3); border-top: 4px solid #ffcc00; 
-            border-radius: 50%; animation: spin 1s linear infinite; display: none;
-        }
+        .prime-spinner { position: absolute; top: -5px; right: -5px; width: 24px; height: 24px; border: 4px solid rgba(255, 204, 0, 0.3); border-top: 4px solid #ffcc00; border-radius: 50%; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .prime-recs-grid { display: grid; grid-template-rows: 1fr 1fr; grid-auto-flow: column; gap: 15px; overflow: visible; padding: 10px; height: 280px; }
@@ -138,54 +168,21 @@
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
         .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.9); }
 
-        /* --- HAUPT GRID INKL. HERO BANNER --- */
-        #smart-tv-ui { 
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; 
-            padding: 60px; box-sizing: border-box; transition: filter 0.4s, opacity 0.3s; overflow-y: auto; overflow-x: hidden;
-            scroll-behavior: smooth;
-        }
-        
-        #grid-content {
-            display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 30px;
-            padding-bottom: 60px;
-        }
-        
-        #grid-hero-container { 
-            grid-column: 1 / -1; background: linear-gradient(135deg, rgba(30,30,46,0.9) 0%, rgba(30,30,46,0.4) 100%); 
-            border-radius: 12px; display: flex; align-items: stretch; padding: 25px; 
-            border: 6px solid transparent; transition: 0.2s; position: relative; overflow: hidden;
-            min-height: 160px;
-        }
+        #smart-tv-ui { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; padding: 60px; box-sizing: border-box; transition: filter 0.4s, opacity 0.3s; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; }
+        #grid-content { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 30px; padding-bottom: 60px; }
+        #grid-hero-container { grid-column: 1 / -1; background: linear-gradient(135deg, rgba(30,30,46,0.9) 0%, rgba(30,30,46,0.4) 100%); border-radius: 12px; display: flex; align-items: stretch; padding: 25px; border: 6px solid transparent; transition: 0.2s; position: relative; overflow: hidden; min-height: 160px; }
         #grid-hero-container.focused { border-color: #d0383e; transform: scale(1.01); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.4); }
-        
         #grid-hero-img { width: 150px; height: 150px; border-radius: 75px; object-fit: cover; margin-right: 30px; z-index: 2; box-shadow: 0 0 20px black; border: 3px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-        
         .hero-info { z-index: 2; display: flex; flex-direction: column; justify-content: center; flex: 1; overflow: hidden; }
-        
         .hero-title-row { display: flex; align-items: baseline; gap: 15px; margin-bottom: 5px; }
         #grid-hero-title { font-size: 42px; font-weight: bold; text-shadow: 2px 2px 5px black; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #grid-hero-country { font-size: 22px; color: #a6e3a1; text-shadow: 1px 1px 3px black; white-space: nowrap; }
-        
         #grid-hero-aliases { font-size: 18px; color: #aaa; font-style: italic; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #grid-hero-bio { font-size: 16px; color: #ddd; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-
-        #grid-hero-btn { 
-            background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 20px; font-weight: bold; 
-            align-self: center; margin-left: 30px; flex-shrink: 0; border: 3px solid transparent; text-align: center;
-        }
+        #grid-hero-btn { background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 20px; font-weight: bold; align-self: center; margin-left: 30px; flex-shrink: 0; border: 3px solid transparent; text-align: center; }
         #grid-hero-container.focused #grid-hero-btn { border-color: white; background: rgba(255,255,255,0.2); }
         #grid-hero-btn.is-fav { color: #d0383e; background: rgba(208,56,62,0.2); }
 
-        .grid-tile { background-color: #1e1e2e; border-radius: 12px; overflow: hidden; border: 6px solid transparent; transition: 0.1s; position: relative; height: 280px; display: block; }
-        .grid-tile.focused { border-color: #d0383e; transform: scale(1.05); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10; }
-        .grid-tile .media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        .grid-tile .video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
-        .grid-tile .title-container { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; overflow: hidden; text-align: center; }
-        .grid-tile .title-container span { display: inline-block; color: white; font-size: 22px; font-weight: bold; font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; will-change: transform; }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        .grid-tile.focused.is-playing .title-container span { padding-left: 100%; animation: marquee 8s linear infinite; }
-
-        /* --- MENÜ BEREICHE --- */
         #left-menu-container { position: absolute; left: 0; top: 0; width: 60vw; height: 100vh; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); overflow: hidden; box-sizing: border-box; transform: translateX(-100%); background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%); }
         #bottom-menu-container { position: absolute; left: 0; bottom: 0; width: 100vw; height: 140px; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: flex; align-items: center; justify-content: center; overflow: hidden; box-sizing: border-box; transform: translateY(100%); background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%); }
         .menu-track-left { position: absolute; top: 0; left: 0; width: 100%; display: flex; flex-direction: column; transition: transform 0.3s ease-out; padding: 0 40px; box-sizing: border-box; }
@@ -203,35 +200,34 @@
     </style>
 </head>
 <body>
-    <div id="smart-tv-ui"><div id="grid-content"></div></div>
-    <div id="loading-spinner"><svg class="spinner" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></div>
-    <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
-    <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
-
-    <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.4</h1>
+    <!-- --- LEGACY UI (Unantastbar) --- -->
+    <h1 id="version-display">hawke297 player | v2.5.5</h1>
     <img id="bg-image" />
-    
-    <div id="notification-layer" style="z-index: 10000;"></div>
-    
+    <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
     <div id="title-ui"></div>
     <div id="progress-ui">
-        <div id="progress-info-container"><div id="status-icon"></div><div id="progress-text">0:00 / 0:00</div></div>
+        <div id="progress-info-container">
+            <div id="status-icon"></div>
+            <div id="progress-text">0:00 / 0:00</div>
+        </div>
         <div id="progress-bar-bg">
             <div id="markers-container"></div>
             <div id="progress-bar-fill"></div>
         </div>
     </div>
+    
+    <!-- --- NEUE UI (Prime Pro / Grid) --- -->
+    <div id="smart-tv-ui"><div id="grid-content"></div></div>
+    <div id="loading-spinner"><svg class="spinner" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></div>
+    <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
+    <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <!-- NEUE UI (Prime Pro) -->
     <div id="prime-osd-container">
-        
         <div class="prime-meta">
             <div class="prime-title" id="prime-title">Wird geladen...</div>
             <div class="prime-actors" id="prime-actors"></div>
         </div>
-        
         <div class="prime-controls-wrapper">
             <div class="prime-progress-row">
                 <div class="prime-time" id="prime-time-current">0:00</div>
@@ -242,47 +238,35 @@
                 <div class="prime-btn" id="prime-row-2-col-0" data-row="2" data-col="0"><svg viewBox="0 0 24 24" width="34" height="34" fill="white"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></div>
                 <div class="prime-btn" id="prime-row-2-col-1" data-row="2" data-col="1"><div id="prime-play-icon"></div></div>
                 <div class="prime-btn" id="prime-row-2-col-2" data-row="2" data-col="2"><div id="prime-fav-icon"></div></div>
-                
                 <div class="prime-btn" id="prime-row-2-col-3" data-row="2" data-col="3">
                     <svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
                     <div id="translate-spinner" class="prime-spinner"></div>
                 </div>
             </div>
         </div>
-
         <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
             <div class="tag-badge" id="prime-row-3-col-0">CC: Aus</div>
             <div class="tag-badge" id="prime-row-3-col-1">Englisch (KI)</div>
             <div class="tag-badge" id="prime-row-3-col-2">Deutsch (KI)</div>
             <div class="tag-badge" id="prime-row-3-col-3">⟳ Neu generieren</div>
         </div>
-
         <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
-        
         <div class="prime-tags-wrapper" id="prime-tags"></div>
-        
     </div>
 
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.4";
-        setTimeout(() => {
-            const vDisp = document.getElementById('version-display');
-            if (vDisp) vDisp.style.display = 'none';
-        }, 5000);
+        const PLAYER_VERSION = "2.5.5";
+        document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
+        setTimeout(() => { document.getElementById('version-display').style.display = 'none'; }, 5000);
 
-        let videoMarkers = [];
-        let markersDrawn = false;
-
-        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>';
-        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-        const SVG_FAV_OFF = '<svg viewBox="0 0 24 24" width="34" height="34" fill="white"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
-        const SVG_FAV_ON = '<svg viewBox="0 0 24 24" width="34" height="34" fill="#d0383e"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+        const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
+        const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
+        const SVG_ERROR = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#ff3333"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
 
         document.getElementById('status-icon').innerHTML = SVG_PLAY;
-        document.getElementById('prime-play-icon').innerHTML = SVG_PLAY;
-        document.getElementById('prime-fav-icon').innerHTML = SVG_FAV_OFF;
 
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
@@ -310,151 +294,61 @@
             return request; 
         });
 
-        // --- NEU: Abfangen Nativer Lade-Befehle (Legacy Apps) ---
-        playerManager.setMessageInterceptor(cast.framework.messages.MessageType.LOAD, request => {
-            if (!document.body.classList.contains("preset-prime-pro")) {
-                document.getElementById('smart-tv-ui').style.display = 'none';
-                document.getElementById('cast-video').style.display = 'block';
-                
-                if (request.media && request.media.metadata && request.media.metadata.title) {
-                    document.getElementById('title-ui').innerText = request.media.metadata.title;
-                }
-                showCustomUI(false);
-                
-                if (request.media && request.media.customData && request.media.customData.markers) {
-                    videoMarkers = request.media.customData.markers;
-                    markersDrawn = false;
-                } else if (request.customData && request.customData.markers) {
-                    videoMarkers = request.customData.markers;
-                    markersDrawn = false;
-                } else {
-                    videoMarkers = [];
-                    markersDrawn = false;
-                }
-                document.getElementById('markers-container').innerHTML = '';
-            }
-            return request;
-        });
-
+        let timeUpdateInterval = null;
+        let activeSenderId = null; 
+        let lastPlayerState = null;
+        let uiTimeout = null; 
+        let currentSkips = [];
+        let markersDrawn = false;
+        
         let seekDebounceTimer = null;
         let virtualSeekTime = 0;
         let isSeeking = false;
-        let activeSenderId = null; 
-        let uiTimeout = null; 
         let previewTimer = null; 
         let recPreviewTimer = null; 
         
         const bgImageElement = document.getElementById('bg-image');
-        const gridUi = document.getElementById('smart-tv-ui');
-        const gridContent = document.getElementById('grid-content');
-        const loadingSpinner = document.getElementById('loading-spinner');
-
-        function sendTelemetry(msg) {
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg }); } catch(e) {}
-            }
-        }
-
-        window.onerror = function(message, source, lineno, colno, error) {
-            sendTelemetry("TV JS-Crash: " + message + " (Zeile " + lineno + ")");
-            return true;
+        
+        bgImageElement.onerror = function() {
+            if (activeSenderId) context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." });
         };
-
+        bgImageElement.onload = function() {
+            if (activeSenderId && bgImageElement.src) context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "DEBUG", message: "Bild erfolgreich auf dem TV geladen!" });
+        };
+        
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            sendTelemetry("Haupt-Player Fehler Code: " + event.detailedErrorCode);
-            loadingSpinner.style.display = "none";
-            document.getElementById('cast-video').style.display = 'none';
-            document.body.style.backgroundColor = "#0f0f15";
-            bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
-            gridUi.style.display = 'block';
-            
             if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") });
             }
-        });
-
-        playerManager.addEventListener(cast.framework.events.EventType.MEDIA_STATUS, (event) => {
-            if (event.mediaStatus && event.mediaStatus.idleReason === 'FINISHED') {
-                if (activeSenderId) {
-                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" }); } catch(e) {}
-                }
-            }
-        });
-
-        // --- NEU: Globale Nativ-Zeit-Erfassung (Garantierte Abwärtskompatibilität) ---
-        playerManager.addEventListener(cast.framework.events.EventType.TIME_UPDATE, (event) => {
-            let cur = event.currentMediaTime || 0;
-            let dur = playerManager.getDurationSec() || 0;
-            
-            if (dur > 0 && videoMarkers && videoMarkers.length > 0 && !markersDrawn) {
-                const mc = document.getElementById('markers-container');
-                mc.innerHTML = '';
-                videoMarkers.forEach(m => {
-                    let left = (m[0] / dur) * 100;
-                    let width = ((m[1] - m[0]) / dur) * 100;
-                    if(width < 0) width = 0;
-                    if(left > 100) left = 100;
-                    let div = document.createElement('div');
-                    div.style.position = 'absolute';
-                    div.style.left = left + '%';
-                    div.style.width = width + '%';
-                    div.style.height = '100%';
-                    div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; 
-                    mc.appendChild(div);
-                });
-                markersDrawn = true;
-            }
-            
-            const progText = document.getElementById('progress-text');
-            if (progText) progText.innerText = formatTime(cur) + " / " + formatTime(dur);
-            
-            let percent = (dur > 0) ? (cur / dur * 100) : 0;
-            const progFill = document.getElementById('progress-bar-fill');
-            if (progFill) progFill.style.width = percent + '%';
-            
-            if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
-                const pCur = document.getElementById('prime-time-current');
-                const pTot = document.getElementById('prime-time-total');
-                const pFill = document.getElementById('prime-bar-fill');
-                if (pCur) pCur.innerText = formatTime(cur);
-                if (pTot) pTot.innerText = formatTime(dur);
-                if (pFill) pFill.style.width = percent + '%';
-            }
-
-            updateClock(); 
-            
-            // --- FIX: Sende die Zeit an JEDEN aktiven Sender im Netzwerk! ---
-            const senders = context.getSenders();
-            senders.forEach(sender => {
-                try {
-                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
-                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "TIME", current: cur, total: dur, currentTime: cur, duration: dur });
-                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "UPDATE_TIME", current: cur, total: dur, currentTime: cur, duration: dur });
-                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "STATUS", position: cur, duration: dur, current: cur, total: dur });
-                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "PROGRESS", position: cur, duration: dur, current: cur, total: dur });
-                } catch (e) {}
+            showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
+                position: "center", bg_color: "rgba(150, 0, 0, 0.95)", border: "2px solid white", text_color: "white", duration: 8000
             });
+            document.getElementById('status-icon').innerHTML = SVG_ERROR;
+            bgImageElement.style.opacity = "1.0"; 
+            
+            // Verstecke die neue UI bei Fehlern
+            document.getElementById('smart-tv-ui').style.display = 'none';
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('cast-video').style.display = 'none';
+            showCustomUI(true); 
         });
 
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
-            if (config.action === "clear") {
-                layer.innerHTML = "";
-                return;
-            }
+            if (config.action === "clear") { layer.innerHTML = ""; return; }
             const notif = document.createElement('div');
             notif.className = 'notification-box';
             notif.innerHTML = text;
             notif.style.backgroundColor = config.bg_color || "rgba(30, 30, 40, 0.95)";
             notif.style.color = config.text_color || "#ffffff";
-            if (config.border) notif.style.border = config.border;
+            if (config.border) notif.style.border = config.border; else notif.style.border = "none";
             if (config.position === "center") { notif.style.top = "50%"; notif.style.left = "50%"; notif.style.transform = "translate(-50%, -50%)"; }
+            else if (config.position === "top-right") { notif.style.top = "30px"; notif.style.right = "30px"; }
+            else if (config.position === "bottom") { notif.style.bottom = "150px"; notif.style.left = "50%"; notif.style.transform = "translateX(-50%)"; }
+            else if (config.position === "top-left") { notif.style.top = "100px"; notif.style.left = "30px"; }
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
-            
-            if (config.duration > 0) {
-                setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration);
-            }
+            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
         }
 
         function formatTime(seconds) {
@@ -515,17 +409,113 @@
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
-            
-            // Sender merken, wenn er Custom Messages feuert
             activeSenderId = customEvent.senderId; 
             
-            // --- FIX: Erlaube Legacy-Marker Updates per separater Nachricht ---
-            if (data.type === "MARKERS") {
-                videoMarkers = data.markers || [];
-                markersDrawn = false;
-                document.getElementById('markers-container').innerHTML = '';
+            // --- ABSOLUT 100% IDENTISCHER LEGACY CODE FÜR UI/CONFIG ---
+            if (data.type === "GET_VERSION") {
+                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
+            else if (data.type === "SET_CONFIG") {
+                const root = document.documentElement;
+                if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
+                if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
+                if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
+                
+                if (data.title_visible !== undefined) root.style.setProperty('--title-display', data.title_visible ? 'block' : 'none');
+                if (data.title_position) {
+                    const titleUi = document.getElementById('title-ui');
+                    if (data.title_position === 'bottom') { titleUi.style.top = 'auto'; titleUi.style.bottom = '120px'; } 
+                    else { titleUi.style.bottom = 'auto'; titleUi.style.top = '30px'; }
+                }
+                if (data.ui_bg_visible !== undefined) {
+                    if (data.ui_bg_visible) {
+                        root.style.setProperty('--ui-bg-color', 'rgba(30, 30, 40, 0.85)');
+                        root.style.setProperty('--ui-border', '1px solid rgba(255, 255, 255, 0.1)');
+                        root.style.setProperty('--ui-text-shadow', '1px 1px 2px black');
+                        root.style.setProperty('--ui-box-shadow', '0px 8px 20px rgba(0, 0, 0, 0.6)');
+                    } else {
+                        root.style.setProperty('--ui-bg-color', 'transparent');
+                        root.style.setProperty('--ui-border', 'none');
+                        root.style.setProperty('--ui-text-shadow', '2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black');
+                        root.style.setProperty('--ui-box-shadow', 'none'); 
+                    }
+                }
+                if (data.full_width !== undefined) {
+                    if (data.full_width) {
+                        root.style.setProperty('--ui-side-margin', '0px');
+                        root.style.setProperty('--ui-bottom-offset', '0px');
+                        root.style.setProperty('--ui-border-radius', '0px');
+                    } else {
+                        root.style.setProperty('--ui-side-margin', '5%');
+                        root.style.setProperty('--ui-bottom-offset', (data.subtitle_offset !== undefined ? data.subtitle_offset : 40) + 'px');
+                        root.style.setProperty('--ui-border-radius', '12px');
+                    }
+                }
+            }
+            else if (data.type === "SET_BACKGROUND") {
+                document.getElementById('version-display').style.display = 'none'; 
+                if (data.url) {
+                    bgImageElement.src = data.url;
+                    let currentState = playerManager.getPlayerState();
+                    if (currentState === 'IDLE' || currentState === 'BUFFERING' || !currentState) bgImageElement.style.opacity = "1.0";
+                    else bgImageElement.style.opacity = "0.15";
+                } else {
+                    bgImageElement.style.opacity = "0";
+                }
+            }
+            else if (data.type === "NOTIFY") {
+                showNotification(data.text, data.config);
+            }
+            else if (data.type === "CONTROL") {
+                if (data.action === "PLAY") playerManager.play();
+                else if (data.action === "PAUSE") playerManager.pause();
+                
+                else if (data.action === "SET_CC") {
+                    let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
+                    if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
+                    else if (data.value === "de") tracksInfoRequest.activeTrackIds = [2];
+                    else tracksInfoRequest.activeTrackIds = []; 
+                    try { playerManager.editTracksInfo(tracksInfoRequest); } catch(e) {}
+                }
+                
+                else if (data.action === "SEEK") {
+                    if (document.body.classList.contains("preset-prime-pro")) {
+                        let dur = playerManager.getDurationSec() || 0;
+                        if (!isSeeking) {
+                            virtualSeekTime = playerManager.getCurrentTimeSec();
+                            isSeeking = true;
+                        }
+                        if (data.value === -999999) virtualSeekTime = 0; 
+                        else virtualSeekTime += data.value;
+                        
+                        if (virtualSeekTime < 0) virtualSeekTime = 0;
+                        if (virtualSeekTime > dur) virtualSeekTime = dur;
+                        
+                        document.getElementById('prime-time-current').innerText = formatTime(virtualSeekTime);
+                        document.getElementById('prime-bar-fill').style.width = (dur > 0 ? (virtualSeekTime / dur * 100) : 0) + '%';
+                        
+                        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+                        seekDebounceTimer = setTimeout(() => {
+                            isPythonSeek = true;
+                            playerManager.seek(virtualSeekTime);
+                            setTimeout(() => { isPythonSeek = false; }, 300);
+                            isSeeking = false;
+                        }, 500);
 
+                    } else {
+                        // LEGACY SEEKING
+                        playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                    }
+                }
+            }
+            else if (data.type === "STOP_APP") {
+                context.stop(); 
+            }
+            else if (data.type === "SHOW_PROGRESS") {
+                showCustomUI(false); 
+            }
+            
+            // --- DIE NEUEN BEFEHLE (Prime Pro Interface) ---
             else if (data.type === "PREPARE_VIDEO") {
                 try { playerManager.stop(); } catch(e) {}
                 
@@ -534,16 +524,14 @@
 
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                document.getElementById('prime-osd-container').classList.remove('osd-visible');
-                document.getElementById('prime-osd-container').classList.remove('recs-focused');
-                document.getElementById('prime-osd-container').classList.remove('cc-focused');
+                document.getElementById('prime-osd-container').classList.remove('osd-visible', 'recs-focused', 'cc-focused');
                 
-                gridUi.style.display = 'none'; gridUi.style.filter = 'none';
+                document.getElementById('smart-tv-ui').style.display = 'none';
                 document.body.style.backgroundColor = "#000000";
                 
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
-                loadingSpinner.style.display = 'block';
+                document.getElementById('loading-spinner').style.display = 'block';
                 
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
@@ -559,33 +547,22 @@
                 if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
             }
-
             else if (data.type === "UPDATE_METADATA") {
                 if (data.title) document.getElementById('prime-title').innerText = data.title;
-                
                 const actorsDiv = document.getElementById('prime-actors');
                 actorsDiv.innerHTML = "";
                 if (data.actors.length > 0) {
                     data.actors.forEach((a, i) => {
                         let html = `<div class="actor-group">`;
-                        if (a.img) {
-                            html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
-                        }
-                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div>
-                            <div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div>
-                        </div>`;
+                        if (a.img) html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
+                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div><div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div></div>`;
                         actorsDiv.insertAdjacentHTML('beforeend', html);
                     });
-                } else {
-                    actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>";
-                }
+                } else actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>";
                 
                 const tagsDiv = document.getElementById('prime-tags');
                 tagsDiv.innerHTML = "";
-                data.tags.forEach((t, i) => {
-                    let html = `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`;
-                    tagsDiv.insertAdjacentHTML('beforeend', html);
-                });
+                data.tags.forEach((t, i) => { tagsDiv.insertAdjacentHTML('beforeend', `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`); });
 
                 const recsDiv = document.getElementById('prime-recs-grid');
                 recsDiv.innerHTML = "";
@@ -593,16 +570,12 @@
                     let row = (i % 2) + 4; 
                     let col = Math.floor(i / 2);
                     let d = document.createElement('div');
-                    d.className = "prime-rec-tile";
-                    d.id = `prime-row-${row}-col-${col}`;
-                    d.dataset.row = row; d.dataset.col = col;
+                    d.className = "prime-rec-tile"; d.id = `prime-row-${row}-col-${col}`; d.dataset.row = row; d.dataset.col = col;
                     
                     let mediaHtml = '<div class="media-container">';
                     let imageSrc = rec.image || rec.video_preview; 
                     mediaHtml += `<img class="media-layer" src="${imageSrc}" onerror="this.style.display='none'">`;
-                    if (rec.video_preview) {
-                        mediaHtml += `<video class="video-layer" src="${rec.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
-                    }
+                    if (rec.video_preview) mediaHtml += `<video class="video-layer" src="${rec.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
                     mediaHtml += '</div>';
 
                     let titleHtml = `<div class="prime-rec-title"><span>${rec.title}</span></div>`;
@@ -610,29 +583,18 @@
                     recsDiv.appendChild(d);
                 });
             }
-
             else if (data.type === "UPDATE_OSD") {
                 const osd = document.getElementById('prime-osd-container');
-                if (data.visible) osd.classList.add('osd-visible');
-                else osd.classList.remove('osd-visible');
-
-                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused');
-                else osd.classList.remove('recs-focused');
-                
-                if (data.row === 3) osd.classList.add('cc-focused');
-                else osd.classList.remove('cc-focused');
+                if (data.visible) osd.classList.add('osd-visible'); else osd.classList.remove('osd-visible');
+                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused'); else osd.classList.remove('recs-focused');
+                if (data.row === 3) osd.classList.add('cc-focused'); else osd.classList.remove('cc-focused');
 
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
                 
                 const spinner = document.getElementById('translate-spinner');
-                if (data.is_translating) {
-                    spinner.style.display = 'block';
-                    document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00";
-                } else {
-                    spinner.style.display = 'none';
-                    document.getElementById('prime-row-2-col-3').style.borderColor = "transparent";
-                }
+                if (data.is_translating) { spinner.style.display = 'block'; document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00"; } 
+                else { spinner.style.display = 'none'; document.getElementById('prime-row-2-col-3').style.borderColor = "transparent"; }
 
                 if (data.rich_actors) {
                     data.rich_actors.forEach((a, i) => {
@@ -652,15 +614,10 @@
                     });
                 }
 
-                let cols = [0, 1, 2, 3];
-                cols.forEach(c => {
-                    let b = document.getElementById(`prime-row-3-col-${c}`);
-                    if (b) b.classList.remove('is-active-cc');
-                });
+                [0, 1, 2, 3].forEach(c => { let b = document.getElementById(`prime-row-3-col-${c}`); if (b) b.classList.remove('is-active-cc'); });
                 if (data.active_cc === "off" && document.getElementById('prime-row-3-col-0')) document.getElementById('prime-row-3-col-0').classList.add('is-active-cc');
                 if (data.active_cc === "en" && document.getElementById('prime-row-3-col-1')) document.getElementById('prime-row-3-col-1').classList.add('is-active-cc');
                 if (data.active_cc === "de" && document.getElementById('prime-row-3-col-2')) document.getElementById('prime-row-3-col-2').classList.add('is-active-cc');
-
 
                 document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
                 
@@ -673,33 +630,26 @@
                     target.classList.add('focused');
                     if (data.row >= 4 && data.row <= 5) {
                         target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
-                        
                         recPreviewTimer = setTimeout(() => {
                             let v = target.querySelector('video.video-layer');
-                            if (v) {
-                                v.style.visibility = "visible";
-                                target.classList.add('is-playing');
-                                let p = v.play(); if (p !== undefined) p.catch(e => {});
-                            } else {
-                                target.classList.add('is-playing');
-                            }
+                            if (v) { v.style.visibility = "visible"; target.classList.add('is-playing'); let p = v.play(); if (p !== undefined) p.catch(e => {}); } 
+                            else { target.classList.add('is-playing'); }
                         }, 700);
                     }
                 }
             }
-
             else if (data.type === "SHOW_LOADING") {
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 document.body.style.backgroundColor = "#0f0f15";
-                gridUi.style.filter = "brightness(0.3) blur(6px)"; gridUi.style.opacity = "1";
-                loadingSpinner.style.display = "block";
+                document.getElementById('smart-tv-ui').style.filter = "brightness(0.3) blur(6px)"; 
+                document.getElementById('smart-tv-ui').style.opacity = "1";
+                document.getElementById('loading-spinner').style.display = "block";
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
                 document.querySelectorAll('.grid-tile').forEach(tile => { tile.classList.remove('is-playing', 'focused'); });
             }
-
             else if (data.type === "LEFT_MENU" || data.type === "BOTTOM_MENU") {
                 const isLeft = data.type === "LEFT_MENU";
                 const container = document.getElementById(isLeft ? 'left-menu-container' : 'bottom-menu-container');
@@ -710,23 +660,22 @@
                     document.querySelectorAll('.grid-tile').forEach(tile => { tile.classList.remove('is-playing', 'focused'); });
 
                     container.style.transform = isLeft ? "translateX(0)" : "translateY(0)";
-                    gridUi.style.filter = "brightness(0.3) blur(6px)"; 
+                    document.getElementById('smart-tv-ui').style.filter = "brightness(0.3) blur(6px)"; 
                     
                     if (isLeft) updateLeftMenuVisuals(data.items, data.focus);
                     else updateBottomMenuVisuals(data.items, data.focus);
-
                 } else if (data.action === "hide") {
                     container.style.transform = isLeft ? "translateX(-100%)" : "translateY(100%)";
-                    gridUi.style.filter = "none";
+                    document.getElementById('smart-tv-ui').style.filter = "none";
                 }
             }
-
             else if (data.type === "UPDATE_GRID_WINDOW") {
                 document.getElementById('version-display').style.display = 'none';
                 document.getElementById('title-ui').classList.remove('ui-visible');
                 document.body.classList.remove("preset-prime-pro");
                 
                 try { playerManager.stop(); } catch(e) {}
+                if (timeUpdateInterval) { clearInterval(timeUpdateInterval); timeUpdateInterval = null; }
 
                 document.body.style.backgroundColor = "#0f0f15";
                 bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
@@ -734,13 +683,17 @@
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('prime-osd-container').classList.remove('osd-visible');
                 
-                loadingSpinner.style.display = "none";
+                const spinner = document.getElementById('loading-spinner');
+                if (spinner) spinner.style.display = "none";
+                
+                const gridUi = document.getElementById('smart-tv-ui');
                 gridUi.style.filter = "none";
                 gridUi.style.display = 'block'; 
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 
+                const gridContent = document.getElementById('grid-content');
                 gridContent.innerHTML = ""; 
                 
                 if (data.hero_data) {
@@ -777,7 +730,6 @@
                 
                 for(let i=0; i<data.items.length; i++) {
                     let item = data.items[i]; 
-                    
                     let isFocused = (i === data.focus_index);
                     let focusCls = isFocused ? ' focused' : '';
                     
@@ -818,135 +770,78 @@
                     }
                 }
             }
-            
-            else if (data.type === "GET_VERSION") {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
-            }
-            else if (data.type === "CONTROL") {
-                if (data.action === "PLAY") playerManager.play();
-                else if (data.action === "PAUSE") playerManager.pause();
-                
-                else if (data.action === "SET_CC") {
-                    let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
-                    if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
-                    else if (data.value === "de") tracksInfoRequest.activeTrackIds = [2];
-                    else tracksInfoRequest.activeTrackIds = []; 
-                    
-                    try { playerManager.editTracksInfo(tracksInfoRequest); } catch(e) {}
-                }
-                
-                else if (data.action === "SEEK") {
-                    if (document.body.classList.contains("preset-prime-pro")) {
-                        let dur = playerManager.getDurationSec() || 0;
-                        if (!isSeeking) {
-                            virtualSeekTime = playerManager.getCurrentTimeSec();
-                            isSeeking = true;
-                        }
-                        
-                        if (data.value === -999999) virtualSeekTime = 0; 
-                        else virtualSeekTime += data.value;
-                        
-                        if (virtualSeekTime < 0) virtualSeekTime = 0;
-                        if (virtualSeekTime > dur) virtualSeekTime = dur;
-                        
-                        document.getElementById('prime-time-current').innerText = formatTime(virtualSeekTime);
-                        document.getElementById('prime-bar-fill').style.width = (dur > 0 ? (virtualSeekTime / dur * 100) : 0) + '%';
-                        
-                        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
-                        seekDebounceTimer = setTimeout(() => {
-                            isPythonSeek = true;
-                            playerManager.seek(virtualSeekTime);
-                            setTimeout(() => { isPythonSeek = false; }, 300);
-                            isSeeking = false;
-                        }, 500);
 
-                    } else {
-                        playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                    }
-                }
-                else if (data.action === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
-                    document.getElementById('progress-ui').classList.add('ui-visible');
-                    document.getElementById('clock-ui').classList.add('ui-visible');
-                    document.getElementById('title-ui').classList.add('ui-visible');
-                    updateClock();
-                    if (uiTimeout) clearTimeout(uiTimeout);
-                    uiTimeout = setTimeout(() => {
-                        document.getElementById('progress-ui').classList.remove('ui-visible');
-                        document.getElementById('clock-ui').classList.remove('ui-visible');
-                        document.getElementById('title-ui').classList.remove('ui-visible');
-                    }, 4000);
-                }
-            }
-            else if (data.type === "STOP_APP") { context.stop(); }
-            
+            // --- DER EXAKTE LEGACY LADEBEFEHL (inklusive neuem Prime Support) ---
             else if (data.type === "LOAD_VIDEO") {
-                loadingSpinner.style.display = "none";
+                document.getElementById('version-display').style.display = 'none';
                 
+                // --- Prime Pro Check ---
                 if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
                 else document.body.classList.remove("preset-prime-pro");
                 
-                document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
-                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                gridUi.style.display = 'none'; gridUi.style.filter = 'none'; 
-                document.body.style.backgroundColor = "#000000";
+                const gridUi = document.getElementById('smart-tv-ui');
+                if (gridUi) gridUi.style.display = 'none';
+                const leftMenu = document.getElementById('left-menu-container');
+                if (leftMenu) leftMenu.style.transform = "translateX(-100%)";
+                const btmMenu = document.getElementById('bottom-menu-container');
+                if (btmMenu) btmMenu.style.transform = "translateY(100%)";
+                
+                const osd = document.getElementById('prime-osd-container');
+                if (osd) osd.classList.remove('osd-visible', 'recs-focused', 'cc-focused');
                 
                 document.getElementById('cast-video').style.display = 'block';
-                document.getElementById('version-display').style.display = 'none';
-                
-                if (previewTimer) clearTimeout(previewTimer);
-                if (recPreviewTimer) clearTimeout(recPreviewTimer);
+                const spinner = document.getElementById('loading-spinner');
+                if (spinner) spinner.style.display = 'none';
                 
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
                 }
+
                 if (data.bg_image) {
                     bgImageElement.src = data.bg_image;
                 }
                 
-                if (data.preset !== "prime_pro") {
-                    showCustomUI();
-                }
-
-                // Marker Vorbereitung für unseren Custom Load Befehl
-                videoMarkers = data.markers || [];
+                // Legacy: currentSkips aus data.skips ODER data.markers befüllen
+                currentSkips = data.skips || data.markers || [];
                 markersDrawn = false;
                 document.getElementById('markers-container').innerHTML = '';
-                
+
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
+                let metadata = new cast.framework.messages.GenericMediaMetadata();
+                metadata.title = data.title || "Custom Stream";
+                mediaInfo.metadata = metadata;
                 
-                mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
-                mediaInfo.metadata.title = data.title || "Custom Stream";
-                
+                // --- NEU: VTT Spuren anhängen (Falls vorhanden) ---
                 let tracks = [];
                 if (data.vtt_en) {
                     let trackEn = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
-                    trackEn.trackContentId = data.vtt_en;
-                    trackEn.trackContentType = 'text/vtt';
+                    trackEn.trackContentId = data.vtt_en; trackEn.trackContentType = 'text/vtt';
                     trackEn.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
                     trackEn.name = 'Englisch (KI)'; trackEn.language = 'en-US';
                     tracks.push(trackEn);
                 }
                 if (data.vtt_de) {
                     let trackDe = new cast.framework.messages.Track(2, cast.framework.messages.TrackType.TEXT);
-                    trackDe.trackContentId = data.vtt_de;
-                    trackDe.trackContentType = 'text/vtt';
+                    trackDe.trackContentId = data.vtt_de; trackDe.trackContentType = 'text/vtt';
                     trackDe.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
                     trackDe.name = 'Deutsch (KI)'; trackDe.language = 'de-DE';
                     tracks.push(trackDe);
                 }
-                
                 if (tracks.length > 0) mediaInfo.tracks = tracks;
                 
                 if (data.active_cc === "en" && data.vtt_en) request.activeTrackIds = [1];
                 else if (data.active_cc === "de" && data.vtt_de) request.activeTrackIds = [2];
                 else request.activeTrackIds = [];
-                
-                request.media = mediaInfo; 
+
+                request.media = mediaInfo;
                 request.autoplay = true;
-                if (data.start_time) request.currentTime = data.start_time;
+                
+                if (data.start_time) {
+                    request.currentTime = data.start_time;
+                }
 
                 try {
                     const textTracksManager = playerManager.getTextTracksManager();
@@ -954,14 +849,93 @@
                 } catch(e) {}
 
                 playerManager.load(request);
+
+                if (timeUpdateInterval) clearInterval(timeUpdateInterval);
+                timeUpdateInterval = setInterval(() => {
+                    try {
+                        let currentState = playerManager.getPlayerState();
+                        
+                        if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
+                            bgImageElement.style.opacity = "1.0";
+                        } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
+                            bgImageElement.style.opacity = "0.15";
+                        }
+
+                        // --- DAS FEHLENDE HERZSTÜCK DER ALTEN APP: STATE_CHANGED ---
+                        if (currentState !== lastPlayerState) {
+                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                                type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
+                            });
+                            
+                            if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
+                                if (currentState === 'PAUSED') {
+                                    document.getElementById('status-icon').innerHTML = SVG_PAUSE;
+                                    if (data.preset !== "prime_pro") showCustomUI(false); 
+                                } else if (currentState === 'BUFFERING') {
+                                    document.getElementById('status-icon').innerHTML = SVG_BUFFER; 
+                                    if (data.preset !== "prime_pro") showCustomUI(true); 
+                                } else if (currentState === 'PLAYING') {
+                                    document.getElementById('status-icon').innerHTML = SVG_PLAY;
+                                    if (data.preset !== "prime_pro") showCustomUI(false); 
+                                }
+                            }
+                            lastPlayerState = currentState;
+                        }
+
+                        let cur = playerManager.getCurrentTimeSec();
+                        let dur = playerManager.getDurationSec();
+                        
+                        // --- ZEICHNET DIE ALTEN ROTEN SKIPS / MARKER ---
+                        if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
+                            let container = document.getElementById('markers-container');
+                            currentSkips.forEach(skip => {
+                                // Kompatibel mit alten "skip.start" und neuen "skip[0]"
+                                let start_val = skip.start !== undefined ? skip.start : skip[0];
+                                let end_val = skip.end !== undefined ? skip.end : skip[1];
+                                
+                                let safeStart = Math.min(start_val, dur);
+                                let safeEnd = Math.min(end_val, dur);
+                                let startPct = (safeStart / dur) * 100;
+                                let widthPct = ((safeEnd - safeStart) / dur) * 100;
+                                
+                                if (widthPct > 0) {
+                                    let marker = document.createElement('div');
+                                    marker.className = 'skip-marker';
+                                    marker.style.left = startPct + '%';
+                                    marker.style.width = widthPct + '%';
+                                    marker.style.backgroundColor = skip.color || 'rgba(229, 9, 20, 0.4)'; 
+                                    container.appendChild(marker);
+                                }
+                            });
+                            markersDrawn = true;
+                        }
+                        
+                        document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
+                        let percent = (dur > 0) ? (cur / dur * 100) : 0;
+                        document.getElementById('progress-bar-fill').style.width = percent + '%';
+                        updateClock(); 
+                        
+                        // --- NEU: Prime Pro UI Update ---
+                        if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
+                            const pCur = document.getElementById('prime-time-current');
+                            const pTot = document.getElementById('prime-time-total');
+                            const pFill = document.getElementById('prime-bar-fill');
+                            if (pCur) pCur.innerText = formatTime(cur);
+                            if (pTot) pTot.innerText = formatTime(dur);
+                            if (pFill) pFill.style.width = percent + '%';
+                        }
+
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                            type: "TIME_UPDATE", currentTime: cur, duration: dur
+                        });
+                    } catch (e) {}
+                }, 1000); 
             }
         });
 
         window.addEventListener('keydown', function(event) {
-            const blockedKeys = ["BrowserBack", "Escape", "Back", "GoBack", "Return", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"];
-            if (blockedKeys.includes(event.key)) {
-                event.preventDefault(); 
-                event.stopPropagation(); 
+            if (event.key === "BrowserBack" || event.key === "Escape") {
+                event.preventDefault(); event.stopPropagation(); 
             }
             if (activeSenderId) {
                 try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
