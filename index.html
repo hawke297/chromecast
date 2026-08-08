@@ -209,7 +209,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3 (Legacy Hotfix)</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.4</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -266,7 +266,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.3-Hotfix2";
+        const PLAYER_VERSION = "2.5.4";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -310,10 +310,35 @@
             return request; 
         });
 
+        // --- NEU: Abfangen Nativer Lade-Befehle (Legacy Apps) ---
+        playerManager.setMessageInterceptor(cast.framework.messages.MessageType.LOAD, request => {
+            if (!document.body.classList.contains("preset-prime-pro")) {
+                document.getElementById('smart-tv-ui').style.display = 'none';
+                document.getElementById('cast-video').style.display = 'block';
+                
+                if (request.media && request.media.metadata && request.media.metadata.title) {
+                    document.getElementById('title-ui').innerText = request.media.metadata.title;
+                }
+                showCustomUI(false);
+                
+                if (request.media && request.media.customData && request.media.customData.markers) {
+                    videoMarkers = request.media.customData.markers;
+                    markersDrawn = false;
+                } else if (request.customData && request.customData.markers) {
+                    videoMarkers = request.customData.markers;
+                    markersDrawn = false;
+                } else {
+                    videoMarkers = [];
+                    markersDrawn = false;
+                }
+                document.getElementById('markers-container').innerHTML = '';
+            }
+            return request;
+        });
+
         let seekDebounceTimer = null;
         let virtualSeekTime = 0;
         let isSeeking = false;
-        let timeUpdateInterval = null;
         let activeSenderId = null; 
         let uiTimeout = null; 
         let previewTimer = null; 
@@ -354,6 +379,61 @@
                     try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" }); } catch(e) {}
                 }
             }
+        });
+
+        // --- NEU: Globale Nativ-Zeit-Erfassung (Garantierte Abwärtskompatibilität) ---
+        playerManager.addEventListener(cast.framework.events.EventType.TIME_UPDATE, (event) => {
+            let cur = event.currentMediaTime || 0;
+            let dur = playerManager.getDurationSec() || 0;
+            
+            if (dur > 0 && videoMarkers && videoMarkers.length > 0 && !markersDrawn) {
+                const mc = document.getElementById('markers-container');
+                mc.innerHTML = '';
+                videoMarkers.forEach(m => {
+                    let left = (m[0] / dur) * 100;
+                    let width = ((m[1] - m[0]) / dur) * 100;
+                    if(width < 0) width = 0;
+                    if(left > 100) left = 100;
+                    let div = document.createElement('div');
+                    div.style.position = 'absolute';
+                    div.style.left = left + '%';
+                    div.style.width = width + '%';
+                    div.style.height = '100%';
+                    div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; 
+                    mc.appendChild(div);
+                });
+                markersDrawn = true;
+            }
+            
+            const progText = document.getElementById('progress-text');
+            if (progText) progText.innerText = formatTime(cur) + " / " + formatTime(dur);
+            
+            let percent = (dur > 0) ? (cur / dur * 100) : 0;
+            const progFill = document.getElementById('progress-bar-fill');
+            if (progFill) progFill.style.width = percent + '%';
+            
+            if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
+                const pCur = document.getElementById('prime-time-current');
+                const pTot = document.getElementById('prime-time-total');
+                const pFill = document.getElementById('prime-bar-fill');
+                if (pCur) pCur.innerText = formatTime(cur);
+                if (pTot) pTot.innerText = formatTime(dur);
+                if (pFill) pFill.style.width = percent + '%';
+            }
+
+            updateClock(); 
+            
+            // --- FIX: Sende die Zeit an JEDEN aktiven Sender im Netzwerk! ---
+            const senders = context.getSenders();
+            senders.forEach(sender => {
+                try {
+                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
+                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "TIME", current: cur, total: dur, currentTime: cur, duration: dur });
+                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "UPDATE_TIME", current: cur, total: dur, currentTime: cur, duration: dur });
+                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "STATUS", position: cur, duration: dur, current: cur, total: dur });
+                    context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, { type: "PROGRESS", position: cur, duration: dur, current: cur, total: dur });
+                } catch (e) {}
+            });
         });
 
         function showNotification(text, config) {
@@ -435,9 +515,18 @@
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
+            
+            // Sender merken, wenn er Custom Messages feuert
             activeSenderId = customEvent.senderId; 
+            
+            // --- FIX: Erlaube Legacy-Marker Updates per separater Nachricht ---
+            if (data.type === "MARKERS") {
+                videoMarkers = data.markers || [];
+                markersDrawn = false;
+                document.getElementById('markers-container').innerHTML = '';
+            }
 
-            if (data.type === "PREPARE_VIDEO") {
+            else if (data.type === "PREPARE_VIDEO") {
                 try { playerManager.stop(); } catch(e) {}
                 
                 if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
@@ -638,7 +727,6 @@
                 document.body.classList.remove("preset-prime-pro");
                 
                 try { playerManager.stop(); } catch(e) {}
-                if (timeUpdateInterval) { clearInterval(timeUpdateInterval); timeUpdateInterval = null; }
 
                 document.body.style.backgroundColor = "#0f0f15";
                 bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
@@ -819,6 +907,7 @@
                     showCustomUI();
                 }
 
+                // Marker Vorbereitung für unseren Custom Load Befehl
                 videoMarkers = data.markers || [];
                 markersDrawn = false;
                 document.getElementById('markers-container').innerHTML = '';
@@ -865,58 +954,6 @@
                 } catch(e) {}
 
                 playerManager.load(request);
-
-                if (timeUpdateInterval) clearInterval(timeUpdateInterval);
-                timeUpdateInterval = setInterval(() => {
-                    try {
-                        let cur = playerManager.getCurrentTimeSec() || 0;
-                        let dur = playerManager.getDurationSec() || 0;
-                        
-                        if (dur > 0 && videoMarkers.length > 0 && !markersDrawn) {
-                            const mc = document.getElementById('markers-container');
-                            mc.innerHTML = '';
-                            videoMarkers.forEach(m => {
-                                let left = (m[0] / dur) * 100;
-                                let width = ((m[1] - m[0]) / dur) * 100;
-                                if(width < 0) width = 0;
-                                if(left > 100) left = 100;
-                                let div = document.createElement('div');
-                                div.style.position = 'absolute';
-                                div.style.left = left + '%';
-                                div.style.width = width + '%';
-                                div.style.height = '100%';
-                                div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; 
-                                mc.appendChild(div);
-                            });
-                            markersDrawn = true;
-                        }
-                        
-                        document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
-                        let percent = (dur > 0) ? (cur / dur * 100) : 0;
-                        document.getElementById('progress-bar-fill').style.width = percent + '%';
-                        
-                        if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
-                            document.getElementById('prime-time-current').innerText = formatTime(cur);
-                            document.getElementById('prime-time-total').innerText = formatTime(dur);
-                            document.getElementById('prime-bar-fill').style.width = percent + '%';
-                        }
-
-                        updateClock(); 
-                        
-                        // --- FIX: Die ULTIMATIVE Abwärtskompatibilität! ---
-                        // Wir senden jedes mögliche Format, das in alten Projekten jemals verwendet wurde.
-                        
-                        // 1. Modernes Format (Für xHamster App)
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
-                        
-                        // 2. Legacy Formate (Für Anime Viewer / Media Player PC-Apps)
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME", current: cur, total: dur, currentTime: cur, duration: dur });
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "UPDATE_TIME", current: cur, total: dur, currentTime: cur, duration: dur });
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "STATUS", position: cur, duration: dur, current: cur, total: dur });
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "PROGRESS", position: cur, duration: dur, current: cur, total: dur });
-
-                    } catch (e) {}
-                }, 1000); 
             }
         });
 
