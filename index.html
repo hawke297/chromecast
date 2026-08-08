@@ -32,8 +32,9 @@
         #progress-info-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         #status-icon { width: 28px; height: 28px; filter: drop-shadow(var(--ui-text-shadow)); }
         #progress-text { font-size: 20px; font-weight: bold; font-family: monospace; }
-        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border-radius: 4px; position: relative; }
-        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; border-radius: 4px; }
+        #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border-radius: 4px; position: relative; overflow: hidden; }
+        #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; border-radius: 4px; position: relative; z-index: 2;}
+        #markers-container { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; z-index: 1;}
         .ui-visible { opacity: 1 !important; }
 
         /* --- PRESET SWITCH LOGIK --- */
@@ -208,7 +209,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3 (Hotfix)</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -217,7 +218,10 @@
     <div id="title-ui"></div>
     <div id="progress-ui">
         <div id="progress-info-container"><div id="status-icon"></div><div id="progress-text">0:00 / 0:00</div></div>
-        <div id="progress-bar-bg"><div id="markers-container"></div><div id="progress-bar-fill"></div></div>
+        <div id="progress-bar-bg">
+            <div id="markers-container"></div>
+            <div id="progress-bar-fill"></div>
+        </div>
     </div>
 
     <!-- NEUE UI (Prime Pro) -->
@@ -246,7 +250,6 @@
             </div>
         </div>
 
-        <!-- --- FIX: Row 3 = CC Menü --- -->
         <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
             <div class="tag-badge" id="prime-row-3-col-0">CC: Aus</div>
             <div class="tag-badge" id="prime-row-3-col-1">Englisch (KI)</div>
@@ -263,11 +266,15 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.3";
+        const PLAYER_VERSION = "2.5.3-Hotfix";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
         }, 5000);
+
+        // --- GLOBALE VARIABLEN FÜR DIE ALTE APP (ABWÄRTSKOMPATIBILITÄT) ---
+        let videoMarkers = [];
+        let markersDrawn = false;
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
@@ -495,7 +502,7 @@
                 const recsDiv = document.getElementById('prime-recs-grid');
                 recsDiv.innerHTML = "";
                 data.recs.forEach((rec, i) => {
-                    let row = (i % 2) + 4; // Row 4 (Top) und Row 5 (Bottom)
+                    let row = (i % 2) + 4; 
                     let col = Math.floor(i / 2);
                     let d = document.createElement('div');
                     d.className = "prime-rec-tile";
@@ -521,11 +528,9 @@
                 if (data.visible) osd.classList.add('osd-visible');
                 else osd.classList.remove('osd-visible');
 
-                // --- FIX: Row 4 und 5 sind jetzt die Recs ---
                 if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused');
                 else osd.classList.remove('recs-focused');
                 
-                // --- FIX: Row 3 ist jetzt das CC Menü ---
                 if (data.row === 3) osd.classList.add('cc-focused');
                 else osd.classList.remove('cc-focused');
 
@@ -789,7 +794,10 @@
             
             else if (data.type === "LOAD_VIDEO") {
                 loadingSpinner.style.display = "none";
+                
+                // --- FIX: Abwärtskompatibilität des Presets ---
                 if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
+                else document.body.classList.remove("preset-prime-pro");
                 
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
@@ -804,11 +812,20 @@
                 
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
-                    document.getElementById('title-ui').classList.remove('ui-visible'); 
                 }
                 if (data.bg_image) {
                     bgImageElement.src = data.bg_image;
                 }
+                
+                // --- FIX: Zeigt bei alten Apps (ohne Prime Preset) direkt die UI an ---
+                if (data.preset !== "prime_pro") {
+                    showCustomUI();
+                }
+
+                // --- FIX: Abwärtskompatibilität für Episoden-Marker (rote Balken) ---
+                videoMarkers = data.markers || [];
+                markersDrawn = false;
+                document.getElementById('markers-container').innerHTML = '';
                 
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
@@ -858,6 +875,26 @@
                     try {
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
+                        
+                        // --- FIX: Rote Marker für gesehene Segmente zeichnen ---
+                        if (dur > 0 && videoMarkers.length > 0 && !markersDrawn) {
+                            const mc = document.getElementById('markers-container');
+                            mc.innerHTML = '';
+                            videoMarkers.forEach(m => {
+                                let left = (m[0] / dur) * 100;
+                                let width = ((m[1] - m[0]) / dur) * 100;
+                                if(width < 0) width = 0;
+                                if(left > 100) left = 100;
+                                let div = document.createElement('div');
+                                div.style.position = 'absolute';
+                                div.style.left = left + '%';
+                                div.style.width = width + '%';
+                                div.style.height = '100%';
+                                div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; // Rot-Transparent
+                                mc.appendChild(div);
+                            });
+                            markersDrawn = true;
+                        }
                         
                         document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
                         let percent = (dur > 0) ? (cur / dur * 100) : 0;
