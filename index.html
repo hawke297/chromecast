@@ -209,7 +209,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3 (Hotfix)</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.3 (Legacy Hotfix)</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -266,13 +266,12 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.3-Hotfix";
+        const PLAYER_VERSION = "2.5.3-Hotfix2";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
         }, 5000);
 
-        // --- GLOBALE VARIABLEN FÜR DIE ALTE APP (ABWÄRTSKOMPATIBILITÄT) ---
         let videoMarkers = [];
         let markersDrawn = false;
 
@@ -795,7 +794,6 @@
             else if (data.type === "LOAD_VIDEO") {
                 loadingSpinner.style.display = "none";
                 
-                // --- FIX: Abwärtskompatibilität des Presets ---
                 if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
                 else document.body.classList.remove("preset-prime-pro");
                 
@@ -817,12 +815,10 @@
                     bgImageElement.src = data.bg_image;
                 }
                 
-                // --- FIX: Zeigt bei alten Apps (ohne Prime Preset) direkt die UI an ---
                 if (data.preset !== "prime_pro") {
                     showCustomUI();
                 }
 
-                // --- FIX: Abwärtskompatibilität für Episoden-Marker (rote Balken) ---
                 videoMarkers = data.markers || [];
                 markersDrawn = false;
                 document.getElementById('markers-container').innerHTML = '';
@@ -873,10 +869,9 @@
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
                     try {
-                        let cur = playerManager.getCurrentTimeSec();
-                        let dur = playerManager.getDurationSec();
+                        let cur = playerManager.getCurrentTimeSec() || 0;
+                        let dur = playerManager.getDurationSec() || 0;
                         
-                        // --- FIX: Rote Marker für gesehene Segmente zeichnen ---
                         if (dur > 0 && videoMarkers.length > 0 && !markersDrawn) {
                             const mc = document.getElementById('markers-container');
                             mc.innerHTML = '';
@@ -890,7 +885,7 @@
                                 div.style.left = left + '%';
                                 div.style.width = width + '%';
                                 div.style.height = '100%';
-                                div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; // Rot-Transparent
+                                div.style.backgroundColor = 'rgba(229, 9, 20, 0.4)'; 
                                 mc.appendChild(div);
                             });
                             markersDrawn = true;
@@ -907,7 +902,19 @@
                         }
 
                         updateClock(); 
+                        
+                        // --- FIX: Die ULTIMATIVE Abwärtskompatibilität! ---
+                        // Wir senden jedes mögliche Format, das in alten Projekten jemals verwendet wurde.
+                        
+                        // 1. Modernes Format (Für xHamster App)
                         context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
+                        
+                        // 2. Legacy Formate (Für Anime Viewer / Media Player PC-Apps)
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME", current: cur, total: dur, currentTime: cur, duration: dur });
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "UPDATE_TIME", current: cur, total: dur, currentTime: cur, duration: dur });
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "STATUS", position: cur, duration: dur, current: cur, total: dur });
+                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "PROGRESS", position: cur, duration: dur, current: cur, total: dur });
+
                     } catch (e) {}
                 }, 1000); 
             }
