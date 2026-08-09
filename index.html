@@ -858,7 +858,7 @@
                         if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
                             bgImageElement.style.opacity = "1.0";
                         } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
-                            bgImageElement.style.opacity = "0.15";
+                            bgImageElement.style.opacity = "0.0";
                         }
 
                         // --- DAS FEHLENDE HERZSTÜCK DER ALTEN APP: STATE_CHANGED ---
