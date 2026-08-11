@@ -198,7 +198,7 @@
 </head>
 <body>
     <!-- --- BASIS-PLAYER UI (Projekt A) --- -->
-    <h1 id="version-display">hawke297 player | v2.5.5.1</h1>
+    <h1 id="version-display">hawke297 player | v2.5.5.3</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
@@ -251,7 +251,7 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.5.1";
+        const PLAYER_VERSION = "2.5.5.3";
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
@@ -317,21 +317,29 @@
         const gridContent = document.getElementById('grid-content');
         const loadingSpinner = document.getElementById('loading-spinner');
 
+        // --- DIE NEUE ZENTRALE POSTSTELLE (BUGFIX FÜR VERBINDUNGSABBRÜCHE) ---
+        function sendToPython(payload) {
+            try {
+                // Holt LIVE in dieser Millisekunde alle verbundenen Geräte
+                const senders = context.getSenders();
+                if (senders && senders.length > 0) {
+                    senders.forEach(sender => {
+                        try { context.sendCustomMessage(CUSTOM_CHANNEL, sender.id, payload); } catch(e) {}
+                    });
+                } else if (activeSenderId) {
+                    // Fallback, falls das Framework die Liste noch nicht aktualisiert hat
+                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, payload); } catch(e) {}
+                }
+            } catch (err) {}
+        }
+
         // --- HELPERS ---
         function consoleLog(msg) {
-            if (activeSenderId) {
-                try {
-                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { 
-                        type: "DEBUG", message: msg 
-                    });
-                } catch(e) {}
-            }
+            sendToPython({ type: "DEBUG", message: msg });
         }
 
         function sendTelemetry(msg) {
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg }); } catch(e) {}
-            }
+            sendToPython({ type: "TELEMETRY", msg: msg });
         }
 
         window.onerror = function(message, source, lineno, colno, error) {
@@ -416,15 +424,14 @@
 
         // --- PLAYER EVENT LISTENERS ---
         bgImageElement.onerror = function() {
-            if (activeSenderId && !document.body.classList.contains("preset-prime-pro")) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." }); } catch(e){}
+            if (!document.body.classList.contains("preset-prime-pro")) {
+                sendToPython({ type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." });
             }
         };
 
         playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") }); } catch(e) {}
-            }
+            sendToPython({ type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") });
+            
             if (document.body.classList.contains("preset-prime-pro")) {
                 sendTelemetry("Haupt-Player Fehler Code: " + event.detailedErrorCode);
                 loadingSpinner.style.display = "none";
@@ -432,9 +439,7 @@
                 document.body.style.backgroundColor = "#0f0f15";
                 bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
                 gridUi.style.display = 'block';
-                if (activeSenderId) {
-                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
-                }
+                sendToPython({ type: "KEY_PRESS", key: "Escape", code: "Escape" });
             } else {
                 showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
                     position: "center", bg_color: "rgba(150, 0, 0, 0.95)", border: "2px solid white", text_color: "white", duration: 8000
@@ -450,21 +455,20 @@
 
         playerManager.addEventListener(cast.framework.events.EventType.MEDIA_STATUS, (event) => {
             if (event.mediaStatus && event.mediaStatus.idleReason === 'FINISHED') {
-                if (activeSenderId) {
-                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" }); } catch(e) {}
-                }
+                sendToPython({ type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" });
             }
         });
 
         // --- DER ZENTRALE MESSAGE RECEIVER (DIE WEICHE) ---
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
+            // Update fallback ID just in case
             activeSenderId = customEvent.senderId; 
 
             // 1. GLOBALE BEFEHLE (Beide)
             if (data.type === "TELEMETRY") { return; }
             else if (data.type === "GET_VERSION") {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
+                sendToPython({ type: "VERSION", version: PLAYER_VERSION });
             }
             else if (data.type === "NOTIFY") {
                 showNotification(data.text, data.config);
@@ -818,6 +822,8 @@
                 document.getElementById('version-display').style.display = 'none';
                 loadingSpinner.style.display = "none";
                 
+                lastPlayerState = null; 
+                
                 // --- DIE ZENTRALE WEICHE ---
                 if (data.preset === "prime_pro") {
                     document.body.classList.add("preset-prime-pro");
@@ -904,24 +910,17 @@
                     try {
                         let currentState = playerManager.getPlayerState();
                         
-                        // Opacity handling für Background-Image
                         if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
                             bgImageElement.style.opacity = "1.0";
                         } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
                             bgImageElement.style.opacity = "0.15";
                         }
 
-                        // --- BUGFIX & LOGGING: Trennung von Status-Update und Sende-Versuch ---
                         if (currentState !== lastPlayerState) {
                             consoleLog(`Statuswechsel erkannt: ${lastPlayerState} -> ${currentState}`);
                             lastPlayerState = currentState; 
                             
-                            try {
-                                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState });
-                                consoleLog(`Status erfolgreich an Python gesendet.`);
-                            } catch (sendErr) {
-                                consoleLog(`FEHLER beim Senden des Status: ${sendErr.message}`);
-                            }
+                            sendToPython({ type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState });
                             
                             if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
                                 if (currentState === 'PAUSED') {
@@ -937,15 +936,12 @@
                             }
                         }
 
-                        let cur = playerManager.getCurrentTimeSec();
-                        let dur = playerManager.getDurationSec();
+                        let rawCur = playerManager.getCurrentTimeSec();
+                        let rawDur = playerManager.getDurationSec();
 
-                        // --- LOGGING: Prüfen auf NaN (Not a Number) ---
-                        if (isNaN(cur) || isNaN(dur)) {
-                            consoleLog(`WARNUNG: Zeit-Variablen defekt! (cur=${cur}, dur=${dur})`);
-                        }
-                        
-                        // --- BASIS-PLAYER: ZEICHNET DIE ALTEN ROTEN SKIPS / MARKER ---
+                        let cur = (typeof rawCur !== 'number' || isNaN(rawCur)) ? 0 : rawCur;
+                        let dur = (typeof rawDur !== 'number' || isNaN(rawDur)) ? 0 : rawDur;
+
                         if (!document.body.classList.contains("preset-prime-pro")) {
                             if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
                                 let container = document.getElementById('markers-container');
@@ -976,7 +972,6 @@
                         document.getElementById('progress-bar-fill').style.width = percent + '%';
                         updateClock(); 
                         
-                        // --- PRIME PRO: UI Update ---
                         if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
                             const pCur = document.getElementById('prime-time-current');
                             const pTot = document.getElementById('prime-time-total');
@@ -986,12 +981,8 @@
                             if (pFill) pFill.style.width = percent + '%';
                         }
 
-                        // --- BUGFIX & LOGGING: Auch das Senden der Zeit wird sicher gekapselt ---
-                        try {
-                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
-                        } catch (timeSendErr) {
-                            consoleLog(`FEHLER beim Senden der Zeit: ${timeSendErr.message}`);
-                        }
+                        // Zeit an alle verbundenen Instanzen senden
+                        sendToPython({ type: "TIME_UPDATE", currentTime: cur, duration: dur });
                         
                     } catch (fatalErr) {
                         consoleLog(`FATALER FEHLER in der UI-Schleife: ${fatalErr.message}`);
@@ -1049,9 +1040,7 @@
                 event.preventDefault(); 
                 event.stopPropagation(); 
             }
-            if (activeSenderId) {
-                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
-            }
+            sendToPython({ type: "KEY_PRESS", key: event.key, code: event.code });
         });
 
         context.start(options);
