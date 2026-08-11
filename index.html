@@ -861,11 +861,19 @@
                             bgImageElement.style.opacity = "0.15";
                         }
 
-                        // --- DAS FEHLENDE HERZSTÜCK DER ALTEN APP: STATE_CHANGED ---
+                        // --- BUGFIX: Trennung von Status-Update und Sende-Versuch ---
                         if (currentState !== lastPlayerState) {
-                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                                type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
-                            });
+                            // Zuerst Status merken, damit wir nicht in einer Fehler-Schleife hängen bleiben!
+                            lastPlayerState = currentState; 
+                            
+                            try {
+                                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                                    type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
+                                });
+                            } catch (sendErr) {
+                                // Wenn das Senden fehlschlägt, wird der Fehler hier geschluckt, 
+                                // damit der Rest (Uhrzeit, UI, Time-Update) trotzdem sicher weiterläuft!
+                            }
                             
                             if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
                                 if (currentState === 'PAUSED') {
@@ -879,7 +887,6 @@
                                     if (data.preset !== "prime_pro") showCustomUI(false); 
                                 }
                             }
-                            lastPlayerState = currentState;
                         }
 
                         let cur = playerManager.getCurrentTimeSec();
@@ -925,11 +932,17 @@
                             if (pFill) pFill.style.width = percent + '%';
                         }
 
-                        context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                            type: "TIME_UPDATE", currentTime: cur, duration: dur
-                        });
-                    } catch (e) {}
-                }, 1000); 
+                        // --- BUGFIX: Auch das Senden der Zeit wird sicher gekapselt ---
+                        try {
+                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
+                                type: "TIME_UPDATE", currentTime: cur, duration: dur
+                            });
+                        } catch (timeSendErr) {}
+                        
+                    } catch (fatalErr) {
+                        // Ein übergeordneter Fehler fängt alles ab, was wir nicht bedacht haben
+                    }
+                }, 1000);
             }
         });
 
