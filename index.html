@@ -4,19 +4,13 @@
     <title>hawke297 Custom Player</title>
     <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
-        /* --- LEGACY CSS (Unantastbar) --- */
+        /* --- BASIS-PLAYER CSS (Projekt A) --- */
         :root {
-            --clock-display: block;
-            --clock-color: #eeeeee;
-            --progress-color: #e50914;
-            --ui-bg-color: transparent; 
-            --ui-border: none; 
+            --clock-display: block; --clock-color: #eeeeee; --progress-color: #e50914;
+            --ui-bg-color: transparent; --ui-border: none; 
             --ui-text-shadow: 2px 2px 4px black, 0px 0px 10px black, 0px 0px 20px black; 
-            --ui-box-shadow: none; 
-            --ui-bottom-offset: 0px; 
-            --ui-side-margin: 0px; 
-            --ui-border-radius: 0px; 
-            --title-display: block;
+            --ui-box-shadow: none; --ui-bottom-offset: 0px; --ui-side-margin: 0px; 
+            --ui-border-radius: 0px; --title-display: block;
         }
 
         body { background-color: #000000; margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: white; transition: background-color 0.3s; }
@@ -49,12 +43,8 @@
         }
 
         #progress-ui {
-            position: absolute; 
-            bottom: var(--ui-bottom-offset); 
-            left: var(--ui-side-margin); 
-            right: var(--ui-side-margin);
-            border-radius: var(--ui-border-radius);
-            background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
+            position: absolute; bottom: var(--ui-bottom-offset); left: var(--ui-side-margin); right: var(--ui-side-margin);
+            border-radius: var(--ui-border-radius); background-color: var(--ui-bg-color); border: var(--ui-border); box-shadow: var(--ui-box-shadow);
             padding: 15px 20px; z-index: 9998; opacity: 0; transition: all 0.3s ease-in-out;
         }
         
@@ -65,25 +55,24 @@
         #progress-text { color: white; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: var(--ui-text-shadow); }
         
         #progress-bar-bg { width: 100%; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.8); border-radius: 4px; overflow: visible; position: relative; }
-        
         #markers-container { position: absolute; bottom: 100%; left: 0; width: 100%; height: 2px; z-index: 3; pointer-events: none; margin-bottom: 2px; }
         .skip-marker { position: absolute; height: 100%; bottom: 0; opacity: 1.0; border-radius: 1px; }
-        
         #progress-bar-fill { width: 0%; height: 100%; background-color: var(--progress-color); transition: width 0.5s linear; position: absolute; top: 0; left: 0; z-index: 2; border-radius: 4px; }
 
 
-        /* --- NEU: V2.5+ CC und Prime Pro CSS --- */
+        /* --- SHARED CSS --- */
         ::cue {
             color: #FFFFFF; background-color: transparent;
             text-shadow: 2px 2px 4px #000000, 0px 0px 10px #000000;
             font-size: 130%; font-family: Arial, sans-serif;
         }
 
-        body.preset-prime-pro #clock-ui, body.preset-prime-pro #title-ui, body.preset-prime-pro #progress-ui, body.preset-prime-pro h1 {
-            display: none !important;
-        }
+        /* --- PRESET SWITCH LOGIK --- */
+        body.preset-prime-pro { background-color: #0f0f15; }
+        body.preset-prime-pro #clock-ui, body.preset-prime-pro #title-ui, body.preset-prime-pro #progress-ui, body.preset-prime-pro h1 { display: none !important; }
         body.preset-prime-pro #prime-osd-container { display: block; }
 
+        /* --- PRIME PRO CSS (Projekt B) --- */
         #prime-osd-container {
             display: none; 
             position: absolute; bottom: 0; left: 0; width: 100vw; height: 100vh;
@@ -162,7 +151,7 @@
         .prime-rec-tile { width: 240px; height: 130px; border-radius: 8px; background: #222; overflow: hidden; position: relative; border: 4px solid transparent; transition: 0.2s; }
         .prime-rec-tile .media-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         .prime-rec-tile img.media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        .prime-rec-tile video.video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; }
+        .prime-rec-tile video.video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
         .prime-rec-title { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 6px; font-size: 15px; box-sizing: border-box; text-align: center; white-space: nowrap; overflow: hidden; z-index: 3; }
         .prime-rec-title span { display: inline-block; will-change: transform; }
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
@@ -182,6 +171,14 @@
         #grid-hero-btn { background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 8px; font-size: 20px; font-weight: bold; align-self: center; margin-left: 30px; flex-shrink: 0; border: 3px solid transparent; text-align: center; }
         #grid-hero-container.focused #grid-hero-btn { border-color: white; background: rgba(255,255,255,0.2); }
         #grid-hero-btn.is-fav { color: #d0383e; background: rgba(208,56,62,0.2); }
+        
+        .grid-tile { background-color: #1e1e2e; border-radius: 12px; overflow: hidden; border: 6px solid transparent; transition: 0.1s; position: relative; height: 280px; display: block; }
+        .grid-tile.focused { border-color: #d0383e; transform: scale(1.05); box-shadow: 0px 10px 30px rgba(208, 56, 62, 0.8); z-index: 10; }
+        .grid-tile .media-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+        .grid-tile .video-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; visibility: hidden; }
+        .grid-tile .title-container { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 15px 0; box-sizing: border-box; z-index: 3; margin: 0; overflow: hidden; text-align: center; }
+        .grid-tile .title-container span { display: inline-block; color: white; font-size: 22px; font-weight: bold; font-family: sans-serif; text-shadow: 1px 1px 3px black; white-space: nowrap; padding: 0 15px; will-change: transform; }
+        .grid-tile.focused.is-playing .title-container span { padding-left: 100%; animation: marquee 8s linear infinite; }
 
         #left-menu-container { position: absolute; left: 0; top: 0; width: 60vw; height: 100vh; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); overflow: hidden; box-sizing: border-box; transform: translateX(-100%); background: linear-gradient(to right, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.9) 60%, transparent 100%); }
         #bottom-menu-container { position: absolute; left: 0; bottom: 0; width: 100vw; height: 140px; z-index: 100; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: flex; align-items: center; justify-content: center; overflow: hidden; box-sizing: border-box; transform: translateY(100%); background: linear-gradient(to top, rgba(15,15,21,0.98) 0%, rgba(15,15,21,0.8) 60%, transparent 100%); }
@@ -200,24 +197,18 @@
     </style>
 </head>
 <body>
-    <!-- --- LEGACY UI (Unantastbar) --- -->
-    <h1 id="version-display">hawke297 player | v2.5.5</h1>
+    <!-- --- BASIS-PLAYER UI (Projekt A) --- -->
+    <h1 id="version-display">hawke297 player | v2.5.5.1</h1>
     <img id="bg-image" />
     <div id="notification-layer"></div>
     <div id="clock-ui">00:00</div>
     <div id="title-ui"></div>
     <div id="progress-ui">
-        <div id="progress-info-container">
-            <div id="status-icon"></div>
-            <div id="progress-text">0:00 / 0:00</div>
-        </div>
-        <div id="progress-bar-bg">
-            <div id="markers-container"></div>
-            <div id="progress-bar-fill"></div>
-        </div>
+        <div id="progress-info-container"><div id="status-icon"></div><div id="progress-text">0:00 / 0:00</div></div>
+        <div id="progress-bar-bg"><div id="markers-container"></div><div id="progress-bar-fill"></div></div>
     </div>
     
-    <!-- --- NEUE UI (Prime Pro / Grid) --- -->
+    <!-- --- PRIME PRO UI (Projekt B) --- -->
     <div id="smart-tv-ui"><div id="grid-content"></div></div>
     <div id="loading-spinner"><svg class="spinner" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></div>
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
@@ -244,30 +235,41 @@
                 </div>
             </div>
         </div>
-        <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
-            <div class="tag-badge" id="prime-row-3-col-0">CC: Aus</div>
-            <div class="tag-badge" id="prime-row-3-col-1">Englisch (KI)</div>
-            <div class="tag-badge" id="prime-row-3-col-2">Deutsch (KI)</div>
-            <div class="tag-badge" id="prime-row-3-col-3">⟳ Neu generieren</div>
-        </div>
+        
         <div class="prime-recs-wrapper"><div class="prime-recs-grid" id="prime-recs-grid"></div></div>
+        
+        <div class="prime-cc-menu-wrapper" id="prime-cc-menu">
+            <div class="tag-badge" id="prime-row-6-col-0">CC: Aus</div>
+            <div class="tag-badge" id="prime-row-6-col-1">Englisch (KI)</div>
+            <div class="tag-badge" id="prime-row-6-col-2">Deutsch (KI)</div>
+            <div class="tag-badge" id="prime-row-6-col-3">⟳ Neu generieren</div>
+        </div>
         <div class="prime-tags-wrapper" id="prime-tags"></div>
     </div>
 
+    <!-- SHARED VIDEO ELEMENT -->
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.5";
-        document.getElementById('version-display').innerText = "hawke297 player | v" + PLAYER_VERSION;
-        setTimeout(() => { document.getElementById('version-display').style.display = 'none'; }, 5000);
+        const PLAYER_VERSION = "2.5.5.1";
+        setTimeout(() => {
+            const vDisp = document.getElementById('version-display');
+            if (vDisp) vDisp.style.display = 'none';
+        }, 5000);
 
+        // --- ICONS ---
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
         const SVG_BUFFER = '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18A8 8 0 1 1 20 12A8 8 0 0 1 12 20Z" opacity="0.5"/><path d="M12 4A8 8 0 0 1 20 12h2A10 10 0 0 0 12 2Z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>';
         const SVG_ERROR = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#ff3333"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+        const SVG_FAV_OFF = '<svg viewBox="0 0 24 24" width="34" height="34" fill="white"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
+        const SVG_FAV_ON = '<svg viewBox="0 0 24 24" width="34" height="34" fill="#d0383e"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 
         document.getElementById('status-icon').innerHTML = SVG_PLAY;
+        document.getElementById('prime-play-icon').innerHTML = SVG_PLAY;
+        document.getElementById('prime-fav-icon').innerHTML = SVG_FAV_OFF;
 
+        // --- CHROMECAST SETUP ---
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const CUSTOM_CHANNEL = 'urn:x-cast:op.viewer';
@@ -294,44 +296,48 @@
             return request; 
         });
 
+        // --- SHARED VARIABLES ---
         let timeUpdateInterval = null;
         let activeSenderId = null; 
         let lastPlayerState = null;
         let uiTimeout = null; 
+        
         let currentSkips = [];
         let markersDrawn = false;
         
         let seekDebounceTimer = null;
         let virtualSeekTime = 0;
         let isSeeking = false;
+        
         let previewTimer = null; 
         let recPreviewTimer = null; 
         
         const bgImageElement = document.getElementById('bg-image');
-        
-        bgImageElement.onerror = function() {
-            if (activeSenderId) context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." });
-        };
-        bgImageElement.onload = function() {
-            if (activeSenderId && bgImageElement.src) context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "DEBUG", message: "Bild erfolgreich auf dem TV geladen!" });
-        };
-        
-        playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+        const gridUi = document.getElementById('smart-tv-ui');
+        const gridContent = document.getElementById('grid-content');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // --- HELPERS ---
+        function consoleLog(msg) {
             if (activeSenderId) {
-                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") });
+                try {
+                    context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { 
+                        type: "DEBUG", message: msg 
+                    });
+                } catch(e) {}
             }
-            showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
-                position: "center", bg_color: "rgba(150, 0, 0, 0.95)", border: "2px solid white", text_color: "white", duration: 8000
-            });
-            document.getElementById('status-icon').innerHTML = SVG_ERROR;
-            bgImageElement.style.opacity = "1.0"; 
-            
-            // Verstecke die neue UI bei Fehlern
-            document.getElementById('smart-tv-ui').style.display = 'none';
-            document.getElementById('loading-spinner').style.display = 'none';
-            document.getElementById('cast-video').style.display = 'none';
-            showCustomUI(true); 
-        });
+        }
+
+        function sendTelemetry(msg) {
+            if (activeSenderId) {
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TELEMETRY", msg: msg }); } catch(e) {}
+            }
+        }
+
+        window.onerror = function(message, source, lineno, colno, error) {
+            sendTelemetry("TV JS-Crash: " + message + " (Zeile " + lineno + ")");
+            return true;
+        };
 
         function showNotification(text, config) {
             const layer = document.getElementById('notification-layer');
@@ -348,7 +354,8 @@
             else if (config.position === "top-left") { notif.style.top = "100px"; notif.style.left = "30px"; }
             layer.appendChild(notif);
             setTimeout(() => notif.style.opacity = "1", 50);
-            setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration || 4000);
+            if (config.duration > 0) { setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, config.duration); }
+            else { setTimeout(() => { notif.style.opacity = "0"; setTimeout(() => notif.remove(), 300); }, 4000); }
         }
 
         function formatTime(seconds) {
@@ -407,14 +414,66 @@
             });
         }
 
+        // --- PLAYER EVENT LISTENERS ---
+        bgImageElement.onerror = function() {
+            if (activeSenderId && !document.body.classList.contains("preset-prime-pro")) {
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "IMAGE_LOAD", message: "TV konnte Bild nicht laden." }); } catch(e){}
+            }
+        };
+
+        playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+            if (activeSenderId) {
+                try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "ERROR", source: "VIDEO_PLAYER", message: "Stream abgebrochen! Grund: " + (event.detailedErrorCode || "Unbekannt") }); } catch(e) {}
+            }
+            if (document.body.classList.contains("preset-prime-pro")) {
+                sendTelemetry("Haupt-Player Fehler Code: " + event.detailedErrorCode);
+                loadingSpinner.style.display = "none";
+                document.getElementById('cast-video').style.display = 'none';
+                document.body.style.backgroundColor = "#0f0f15";
+                bgImageElement.removeAttribute('src'); bgImageElement.style.opacity = "0"; 
+                gridUi.style.display = 'block';
+                if (activeSenderId) {
+                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "Escape", code: "Escape" }); } catch (e) {}
+                }
+            } else {
+                showNotification("Stream abgelaufen oder nicht gefunden!<br><span style='font-size:18px;color:#ffaaaa'>Bitte neue URL in der App laden.</span>", {
+                    position: "center", bg_color: "rgba(150, 0, 0, 0.95)", border: "2px solid white", text_color: "white", duration: 8000
+                });
+                document.getElementById('status-icon').innerHTML = SVG_ERROR;
+                bgImageElement.style.opacity = "1.0"; 
+                gridUi.style.display = 'none';
+                loadingSpinner.style.display = 'none';
+                document.getElementById('cast-video').style.display = 'none';
+                showCustomUI(true); 
+            }
+        });
+
+        playerManager.addEventListener(cast.framework.events.EventType.MEDIA_STATUS, (event) => {
+            if (event.mediaStatus && event.mediaStatus.idleReason === 'FINISHED') {
+                if (activeSenderId) {
+                    try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" }); } catch(e) {}
+                }
+            }
+        });
+
+        // --- DER ZENTRALE MESSAGE RECEIVER (DIE WEICHE) ---
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
             const data = customEvent.data;
             activeSenderId = customEvent.senderId; 
-            
-            // --- ABSOLUT 100% IDENTISCHER LEGACY CODE FÜR UI/CONFIG ---
-            if (data.type === "GET_VERSION") {
+
+            // 1. GLOBALE BEFEHLE (Beide)
+            if (data.type === "TELEMETRY") { return; }
+            else if (data.type === "GET_VERSION") {
                 context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "VERSION", version: PLAYER_VERSION });
             }
+            else if (data.type === "NOTIFY") {
+                showNotification(data.text, data.config);
+            }
+            else if (data.type === "STOP_APP") {
+                context.stop(); 
+            }
+
+            // 2. BASIS-PLAYER SPEZIFISCHE BEFEHLE (Projekt A)
             else if (data.type === "SET_CONFIG") {
                 const root = document.documentElement;
                 if (data.clock_visible !== undefined) root.style.setProperty('--clock-display', data.clock_visible ? 'block' : 'none');
@@ -463,59 +522,11 @@
                     bgImageElement.style.opacity = "0";
                 }
             }
-            else if (data.type === "NOTIFY") {
-                showNotification(data.text, data.config);
-            }
-            else if (data.type === "CONTROL") {
-                if (data.action === "PLAY") playerManager.play();
-                else if (data.action === "PAUSE") playerManager.pause();
-                
-                else if (data.action === "SET_CC") {
-                    let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
-                    if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
-                    else if (data.value === "de") tracksInfoRequest.activeTrackIds = [2];
-                    else tracksInfoRequest.activeTrackIds = []; 
-                    try { playerManager.editTracksInfo(tracksInfoRequest); } catch(e) {}
-                }
-                
-                else if (data.action === "SEEK") {
-                    if (document.body.classList.contains("preset-prime-pro")) {
-                        let dur = playerManager.getDurationSec() || 0;
-                        if (!isSeeking) {
-                            virtualSeekTime = playerManager.getCurrentTimeSec();
-                            isSeeking = true;
-                        }
-                        if (data.value === -999999) virtualSeekTime = 0; 
-                        else virtualSeekTime += data.value;
-                        
-                        if (virtualSeekTime < 0) virtualSeekTime = 0;
-                        if (virtualSeekTime > dur) virtualSeekTime = dur;
-                        
-                        document.getElementById('prime-time-current').innerText = formatTime(virtualSeekTime);
-                        document.getElementById('prime-bar-fill').style.width = (dur > 0 ? (virtualSeekTime / dur * 100) : 0) + '%';
-                        
-                        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
-                        seekDebounceTimer = setTimeout(() => {
-                            isPythonSeek = true;
-                            playerManager.seek(virtualSeekTime);
-                            setTimeout(() => { isPythonSeek = false; }, 300);
-                            isSeeking = false;
-                        }, 500);
-
-                    } else {
-                        // LEGACY SEEKING
-                        playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
-                    }
-                }
-            }
-            else if (data.type === "STOP_APP") {
-                context.stop(); 
-            }
-            else if (data.type === "SHOW_PROGRESS") {
+            else if (data.type === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
                 showCustomUI(false); 
             }
-            
-            // --- DIE NEUEN BEFEHLE (Prime Pro Interface) ---
+
+            // 3. PRIME PRO SPEZIFISCHE BEFEHLE (Projekt B)
             else if (data.type === "PREPARE_VIDEO") {
                 try { playerManager.stop(); } catch(e) {}
                 
@@ -526,12 +537,12 @@
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 document.getElementById('prime-osd-container').classList.remove('osd-visible', 'recs-focused', 'cc-focused');
                 
-                document.getElementById('smart-tv-ui').style.display = 'none';
+                gridUi.style.display = 'none'; gridUi.style.filter = 'none';
                 document.body.style.backgroundColor = "#000000";
                 
                 document.getElementById('cast-video').style.display = 'block';
                 document.getElementById('version-display').style.display = 'none';
-                document.getElementById('loading-spinner').style.display = 'block';
+                loadingSpinner.style.display = 'block';
                 
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
@@ -549,33 +560,46 @@
             }
             else if (data.type === "UPDATE_METADATA") {
                 if (data.title) document.getElementById('prime-title').innerText = data.title;
+                
                 const actorsDiv = document.getElementById('prime-actors');
                 actorsDiv.innerHTML = "";
                 if (data.actors.length > 0) {
                     data.actors.forEach((a, i) => {
                         let html = `<div class="actor-group">`;
-                        if (a.img) html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
-                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div><div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div></div>`;
+                        if (a.img) {
+                            html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
+                        }
+                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div>
+                            <div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div>
+                        </div>`;
                         actorsDiv.insertAdjacentHTML('beforeend', html);
                     });
-                } else actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>";
+                } else {
+                    actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>";
+                }
                 
                 const tagsDiv = document.getElementById('prime-tags');
                 tagsDiv.innerHTML = "";
-                data.tags.forEach((t, i) => { tagsDiv.insertAdjacentHTML('beforeend', `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`); });
+                data.tags.forEach((t, i) => {
+                    let html = `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`;
+                    tagsDiv.insertAdjacentHTML('beforeend', html);
+                });
 
                 const recsDiv = document.getElementById('prime-recs-grid');
                 recsDiv.innerHTML = "";
                 data.recs.forEach((rec, i) => {
-                    let row = (i % 2) + 4; 
-                    let col = Math.floor(i / 2);
+                    let row = (i % 2) + 4; let col = Math.floor(i / 2); 
                     let d = document.createElement('div');
-                    d.className = "prime-rec-tile"; d.id = `prime-row-${row}-col-${col}`; d.dataset.row = row; d.dataset.col = col;
+                    d.className = "prime-rec-tile";
+                    d.id = `prime-row-${row}-col-${col}`;
+                    d.dataset.row = row; d.dataset.col = col;
                     
                     let mediaHtml = '<div class="media-container">';
                     let imageSrc = rec.image || rec.video_preview; 
                     mediaHtml += `<img class="media-layer" src="${imageSrc}" onerror="this.style.display='none'">`;
-                    if (rec.video_preview) mediaHtml += `<video class="video-layer" src="${rec.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
+                    if (rec.video_preview) {
+                        mediaHtml += `<video class="video-layer" src="${rec.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
+                    }
                     mediaHtml += '</div>';
 
                     let titleHtml = `<div class="prime-rec-title"><span>${rec.title}</span></div>`;
@@ -585,16 +609,26 @@
             }
             else if (data.type === "UPDATE_OSD") {
                 const osd = document.getElementById('prime-osd-container');
-                if (data.visible) osd.classList.add('osd-visible'); else osd.classList.remove('osd-visible');
-                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused'); else osd.classList.remove('recs-focused');
-                if (data.row === 3) osd.classList.add('cc-focused'); else osd.classList.remove('cc-focused');
+                if (data.visible) osd.classList.add('osd-visible');
+                else osd.classList.remove('osd-visible');
+
+                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused');
+                else osd.classList.remove('recs-focused');
+                
+                if (data.row === 3 || data.row === 6) osd.classList.add('cc-focused'); 
+                else osd.classList.remove('cc-focused');
 
                 document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
                 document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
                 
                 const spinner = document.getElementById('translate-spinner');
-                if (data.is_translating) { spinner.style.display = 'block'; document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00"; } 
-                else { spinner.style.display = 'none'; document.getElementById('prime-row-2-col-3').style.borderColor = "transparent"; }
+                if (data.is_translating) {
+                    spinner.style.display = 'block';
+                    document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00";
+                } else {
+                    spinner.style.display = 'none';
+                    document.getElementById('prime-row-2-col-3').style.borderColor = "transparent";
+                }
 
                 if (data.rich_actors) {
                     data.rich_actors.forEach((a, i) => {
@@ -614,10 +648,16 @@
                     });
                 }
 
-                [0, 1, 2, 3].forEach(c => { let b = document.getElementById(`prime-row-3-col-${c}`); if (b) b.classList.remove('is-active-cc'); });
-                if (data.active_cc === "off" && document.getElementById('prime-row-3-col-0')) document.getElementById('prime-row-3-col-0').classList.add('is-active-cc');
-                if (data.active_cc === "en" && document.getElementById('prime-row-3-col-1')) document.getElementById('prime-row-3-col-1').classList.add('is-active-cc');
-                if (data.active_cc === "de" && document.getElementById('prime-row-3-col-2')) document.getElementById('prime-row-3-col-2').classList.add('is-active-cc');
+                let cols = [0, 1, 2, 3];
+                let ccRow = (data.row === 3 || document.getElementById('prime-row-3-col-0')) ? 3 : 6;
+                cols.forEach(c => {
+                    let b = document.getElementById(`prime-row-${ccRow}-col-${c}`);
+                    if (b) b.classList.remove('is-active-cc');
+                });
+                if (data.active_cc === "off" && document.getElementById(`prime-row-${ccRow}-col-0`)) document.getElementById(`prime-row-${ccRow}-col-0`).classList.add('is-active-cc');
+                if (data.active_cc === "en" && document.getElementById(`prime-row-${ccRow}-col-1`)) document.getElementById(`prime-row-${ccRow}-col-1`).classList.add('is-active-cc');
+                if (data.active_cc === "de" && document.getElementById(`prime-row-${ccRow}-col-2`)) document.getElementById(`prime-row-${ccRow}-col-2`).classList.add('is-active-cc');
+
 
                 document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
                 
@@ -630,10 +670,16 @@
                     target.classList.add('focused');
                     if (data.row >= 4 && data.row <= 5) {
                         target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+                        
                         recPreviewTimer = setTimeout(() => {
                             let v = target.querySelector('video.video-layer');
-                            if (v) { v.style.visibility = "visible"; target.classList.add('is-playing'); let p = v.play(); if (p !== undefined) p.catch(e => {}); } 
-                            else { target.classList.add('is-playing'); }
+                            if (v) {
+                                v.style.visibility = "visible";
+                                target.classList.add('is-playing');
+                                let p = v.play(); if (p !== undefined) p.catch(e => {});
+                            } else {
+                                target.classList.add('is-playing');
+                            }
                         }, 700);
                     }
                 }
@@ -642,9 +688,8 @@
                 document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
                 document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
                 document.body.style.backgroundColor = "#0f0f15";
-                document.getElementById('smart-tv-ui').style.filter = "brightness(0.3) blur(6px)"; 
-                document.getElementById('smart-tv-ui').style.opacity = "1";
-                document.getElementById('loading-spinner').style.display = "block";
+                gridUi.style.filter = "brightness(0.3) blur(6px)"; gridUi.style.opacity = "1";
+                loadingSpinner.style.display = "block";
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
@@ -660,13 +705,14 @@
                     document.querySelectorAll('.grid-tile').forEach(tile => { tile.classList.remove('is-playing', 'focused'); });
 
                     container.style.transform = isLeft ? "translateX(0)" : "translateY(0)";
-                    document.getElementById('smart-tv-ui').style.filter = "brightness(0.3) blur(6px)"; 
+                    gridUi.style.filter = "brightness(0.3) blur(6px)"; 
                     
                     if (isLeft) updateLeftMenuVisuals(data.items, data.focus);
                     else updateBottomMenuVisuals(data.items, data.focus);
+
                 } else if (data.action === "hide") {
                     container.style.transform = isLeft ? "translateX(-100%)" : "translateY(100%)";
-                    document.getElementById('smart-tv-ui').style.filter = "none";
+                    gridUi.style.filter = "none";
                 }
             }
             else if (data.type === "UPDATE_GRID_WINDOW") {
@@ -683,17 +729,13 @@
                 document.getElementById('cast-video').style.display = 'none';
                 document.getElementById('prime-osd-container').classList.remove('osd-visible');
                 
-                const spinner = document.getElementById('loading-spinner');
-                if (spinner) spinner.style.display = "none";
-                
-                const gridUi = document.getElementById('smart-tv-ui');
+                loadingSpinner.style.display = "none";
                 gridUi.style.filter = "none";
                 gridUi.style.display = 'block'; 
                 
                 if (previewTimer) clearTimeout(previewTimer);
                 if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 
-                const gridContent = document.getElementById('grid-content');
                 gridContent.innerHTML = ""; 
                 
                 if (data.hero_data) {
@@ -771,77 +813,83 @@
                 }
             }
 
-            // --- DER EXAKTE LEGACY LADEBEFEHL (inklusive neuem Prime Support) ---
+            // 4. SHARED BEFEHLE (Projekt A & B)
             else if (data.type === "LOAD_VIDEO") {
                 document.getElementById('version-display').style.display = 'none';
+                loadingSpinner.style.display = "none";
                 
-                // --- Prime Pro Check ---
-                if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
-                else document.body.classList.remove("preset-prime-pro");
+                // --- DIE ZENTRALE WEICHE ---
+                if (data.preset === "prime_pro") {
+                    document.body.classList.add("preset-prime-pro");
+                    
+                    document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
+                    document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
+                    gridUi.style.display = 'none'; gridUi.style.filter = 'none'; 
+                    document.getElementById('prime-osd-container').classList.remove('osd-visible', 'recs-focused', 'cc-focused');
+                } else {
+                    document.body.classList.remove("preset-prime-pro");
+                }
                 
-                const gridUi = document.getElementById('smart-tv-ui');
-                if (gridUi) gridUi.style.display = 'none';
-                const leftMenu = document.getElementById('left-menu-container');
-                if (leftMenu) leftMenu.style.transform = "translateX(-100%)";
-                const btmMenu = document.getElementById('bottom-menu-container');
-                if (btmMenu) btmMenu.style.transform = "translateY(100%)";
-                
-                const osd = document.getElementById('prime-osd-container');
-                if (osd) osd.classList.remove('osd-visible', 'recs-focused', 'cc-focused');
-                
+                document.body.style.backgroundColor = "#000000";
                 document.getElementById('cast-video').style.display = 'block';
-                const spinner = document.getElementById('loading-spinner');
-                if (spinner) spinner.style.display = 'none';
+                
+                if (previewTimer) clearTimeout(previewTimer);
+                if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 
                 if (data.title) {
                     document.getElementById('title-ui').innerText = data.title;
+                    if (data.preset !== "prime_pro") {
+                        document.getElementById('title-ui').classList.remove('ui-visible'); 
+                    }
                 }
-
                 if (data.bg_image) {
                     bgImageElement.src = data.bg_image;
+                    if (data.preset === "prime_pro") bgImageElement.style.opacity = "0.5";
+                } else if (data.preset !== "prime_pro") {
+                    bgImageElement.style.opacity = "0";
                 }
                 
-                // Legacy: currentSkips aus data.skips ODER data.markers befüllen
+                // Basis-Player Skips initialisieren
                 currentSkips = data.skips || data.markers || [];
                 markersDrawn = false;
                 document.getElementById('markers-container').innerHTML = '';
-
+                
                 let request = new cast.framework.messages.LoadRequestData();
                 let mediaInfo = new cast.framework.messages.MediaInformation();
                 mediaInfo.contentId = data.url;
                 mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
-                let metadata = new cast.framework.messages.GenericMediaMetadata();
-                metadata.title = data.title || "Custom Stream";
-                mediaInfo.metadata = metadata;
                 
-                // --- NEU: VTT Spuren anhängen (Falls vorhanden) ---
+                mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
+                mediaInfo.metadata.title = data.title || "Custom Stream";
+                
+                // --- UNTERTITEL (Beide Welten) ---
                 let tracks = [];
                 if (data.vtt_en) {
                     let trackEn = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
-                    trackEn.trackContentId = data.vtt_en; trackEn.trackContentType = 'text/vtt';
+                    trackEn.trackContentId = data.vtt_en;
+                    trackEn.trackContentType = 'text/vtt';
                     trackEn.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
                     trackEn.name = 'Englisch (KI)'; trackEn.language = 'en-US';
                     tracks.push(trackEn);
                 }
                 if (data.vtt_de) {
                     let trackDe = new cast.framework.messages.Track(2, cast.framework.messages.TrackType.TEXT);
-                    trackDe.trackContentId = data.vtt_de; trackDe.trackContentType = 'text/vtt';
+                    trackDe.trackContentId = data.vtt_de;
+                    trackDe.trackContentType = 'text/vtt';
                     trackDe.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
                     trackDe.name = 'Deutsch (KI)'; trackDe.language = 'de-DE';
                     tracks.push(trackDe);
                 }
+                
                 if (tracks.length > 0) mediaInfo.tracks = tracks;
                 
                 if (data.active_cc === "en" && data.vtt_en) request.activeTrackIds = [1];
                 else if (data.active_cc === "de" && data.vtt_de) request.activeTrackIds = [2];
                 else request.activeTrackIds = [];
-
-                request.media = mediaInfo;
-                request.autoplay = true;
                 
-                if (data.start_time) {
-                    request.currentTime = data.start_time;
-                }
+                request.media = mediaInfo; 
+                request.autoplay = true;
+                if (data.start_time) request.currentTime = data.start_time;
 
                 try {
                     const textTracksManager = playerManager.getTextTracksManager();
@@ -850,71 +898,77 @@
 
                 playerManager.load(request);
 
+                // --- DER UNIFIZIERTE & GEFIXTE TIME-UPDATE-INTERVAL ---
                 if (timeUpdateInterval) clearInterval(timeUpdateInterval);
                 timeUpdateInterval = setInterval(() => {
                     try {
                         let currentState = playerManager.getPlayerState();
                         
+                        // Opacity handling für Background-Image
                         if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
                             bgImageElement.style.opacity = "1.0";
                         } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
                             bgImageElement.style.opacity = "0.15";
                         }
 
-                        // --- BUGFIX: Trennung von Status-Update und Sende-Versuch ---
+                        // --- BUGFIX & LOGGING: Trennung von Status-Update und Sende-Versuch ---
                         if (currentState !== lastPlayerState) {
-                            // Zuerst Status merken, damit wir nicht in einer Fehler-Schleife hängen bleiben!
+                            consoleLog(`Statuswechsel erkannt: ${lastPlayerState} -> ${currentState}`);
                             lastPlayerState = currentState; 
                             
                             try {
-                                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                                    type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState
-                                });
+                                context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "REMOTE_ACTION", action: "STATE_CHANGED", value: currentState });
+                                consoleLog(`Status erfolgreich an Python gesendet.`);
                             } catch (sendErr) {
-                                // Wenn das Senden fehlschlägt, wird der Fehler hier geschluckt, 
-                                // damit der Rest (Uhrzeit, UI, Time-Update) trotzdem sicher weiterläuft!
+                                consoleLog(`FEHLER beim Senden des Status: ${sendErr.message}`);
                             }
                             
                             if (document.getElementById('status-icon').innerHTML !== SVG_ERROR) {
                                 if (currentState === 'PAUSED') {
                                     document.getElementById('status-icon').innerHTML = SVG_PAUSE;
-                                    if (data.preset !== "prime_pro") showCustomUI(false); 
+                                    if (!document.body.classList.contains("preset-prime-pro")) showCustomUI(false); 
                                 } else if (currentState === 'BUFFERING') {
                                     document.getElementById('status-icon').innerHTML = SVG_BUFFER; 
-                                    if (data.preset !== "prime_pro") showCustomUI(true); 
+                                    if (!document.body.classList.contains("preset-prime-pro")) showCustomUI(true); 
                                 } else if (currentState === 'PLAYING') {
                                     document.getElementById('status-icon').innerHTML = SVG_PLAY;
-                                    if (data.preset !== "prime_pro") showCustomUI(false); 
+                                    if (!document.body.classList.contains("preset-prime-pro")) showCustomUI(false); 
                                 }
                             }
                         }
 
                         let cur = playerManager.getCurrentTimeSec();
                         let dur = playerManager.getDurationSec();
+
+                        // --- LOGGING: Prüfen auf NaN (Not a Number) ---
+                        if (isNaN(cur) || isNaN(dur)) {
+                            consoleLog(`WARNUNG: Zeit-Variablen defekt! (cur=${cur}, dur=${dur})`);
+                        }
                         
-                        // --- ZEICHNET DIE ALTEN ROTEN SKIPS / MARKER ---
-                        if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
-                            let container = document.getElementById('markers-container');
-                            currentSkips.forEach(skip => {
-                                // Kompatibel mit alten "skip.start" und neuen "skip[0]"
-                                let start_val = skip.start !== undefined ? skip.start : skip[0];
-                                let end_val = skip.end !== undefined ? skip.end : skip[1];
-                                
-                                let safeStart = Math.min(start_val, dur);
-                                let safeEnd = Math.min(end_val, dur);
-                                let startPct = (safeStart / dur) * 100;
-                                let widthPct = ((safeEnd - safeStart) / dur) * 100;
-                                
-                                if (widthPct > 0) {
-                                    let marker = document.createElement('div');
-                                    marker.className = 'skip-marker';
-                                    marker.style.left = startPct + '%';
-                                    marker.style.width = widthPct + '%';
-                                    marker.style.backgroundColor = skip.color || 'rgba(229, 9, 20, 0.4)'; 
-                                    container.appendChild(marker);
-                                }
-                            });
-                            markersDrawn = true;
+                        // --- BASIS-PLAYER: ZEICHNET DIE ALTEN ROTEN SKIPS / MARKER ---
+                        if (!document.body.classList.contains("preset-prime-pro")) {
+                            if (dur > 0 && !markersDrawn && currentSkips.length > 0) {
+                                let container = document.getElementById('markers-container');
+                                currentSkips.forEach(skip => {
+                                    let start_val = skip.start !== undefined ? skip.start : skip[0];
+                                    let end_val = skip.end !== undefined ? skip.end : skip[1];
+                                    
+                                    let safeStart = Math.min(start_val, dur);
+                                    let safeEnd = Math.min(end_val, dur);
+                                    let startPct = (safeStart / dur) * 100;
+                                    let widthPct = ((safeEnd - safeStart) / dur) * 100;
+                                    
+                                    if (widthPct > 0) {
+                                        let marker = document.createElement('div');
+                                        marker.className = 'skip-marker';
+                                        marker.style.left = startPct + '%';
+                                        marker.style.width = widthPct + '%';
+                                        marker.style.backgroundColor = skip.color || 'rgba(229, 9, 20, 0.4)'; 
+                                        container.appendChild(marker);
+                                    }
+                                });
+                                markersDrawn = true;
+                            }
                         }
                         
                         document.getElementById('progress-text').innerText = formatTime(cur) + " / " + formatTime(dur);
@@ -922,7 +976,7 @@
                         document.getElementById('progress-bar-fill').style.width = percent + '%';
                         updateClock(); 
                         
-                        // --- NEU: Prime Pro UI Update ---
+                        // --- PRIME PRO: UI Update ---
                         if (!isSeeking && document.body.classList.contains("preset-prime-pro")) {
                             const pCur = document.getElementById('prime-time-current');
                             const pTot = document.getElementById('prime-time-total');
@@ -932,23 +986,68 @@
                             if (pFill) pFill.style.width = percent + '%';
                         }
 
-                        // --- BUGFIX: Auch das Senden der Zeit wird sicher gekapselt ---
+                        // --- BUGFIX & LOGGING: Auch das Senden der Zeit wird sicher gekapselt ---
                         try {
-                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, {
-                                type: "TIME_UPDATE", currentTime: cur, duration: dur
-                            });
-                        } catch (timeSendErr) {}
+                            context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "TIME_UPDATE", currentTime: cur, duration: dur });
+                        } catch (timeSendErr) {
+                            consoleLog(`FEHLER beim Senden der Zeit: ${timeSendErr.message}`);
+                        }
                         
                     } catch (fatalErr) {
-                        // Ein übergeordneter Fehler fängt alles ab, was wir nicht bedacht haben
+                        consoleLog(`FATALER FEHLER in der UI-Schleife: ${fatalErr.message}`);
                     }
-                }, 1000);
+                }, 1000); 
+            }
+            else if (data.type === "CONTROL") {
+                if (data.action === "PLAY") playerManager.play();
+                else if (data.action === "PAUSE") playerManager.pause();
+                
+                else if (data.action === "SET_CC") {
+                    let tracksInfoRequest = new cast.framework.messages.EditTracksInfoRequest();
+                    if (data.value === "en") tracksInfoRequest.activeTrackIds = [1];
+                    else if (data.value === "de") tracksInfoRequest.activeTrackIds = [2];
+                    else tracksInfoRequest.activeTrackIds = []; 
+                    
+                    try { playerManager.editTracksInfo(tracksInfoRequest); } catch(e) {}
+                }
+                
+                else if (data.action === "SEEK") {
+                    if (document.body.classList.contains("preset-prime-pro")) {
+                        let dur = playerManager.getDurationSec() || 0;
+                        if (!isSeeking) {
+                            virtualSeekTime = playerManager.getCurrentTimeSec();
+                            isSeeking = true;
+                        }
+                        
+                        if (data.value === -999999) virtualSeekTime = 0; 
+                        else virtualSeekTime += data.value;
+                        
+                        if (virtualSeekTime < 0) virtualSeekTime = 0;
+                        if (virtualSeekTime > dur) virtualSeekTime = dur;
+                        
+                        document.getElementById('prime-time-current').innerText = formatTime(virtualSeekTime);
+                        document.getElementById('prime-bar-fill').style.width = (dur > 0 ? (virtualSeekTime / dur * 100) : 0) + '%';
+                        
+                        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+                        seekDebounceTimer = setTimeout(() => {
+                            isPythonSeek = true;
+                            playerManager.seek(virtualSeekTime);
+                            setTimeout(() => { isPythonSeek = false; }, 300);
+                            isSeeking = false;
+                        }, 500);
+                    } else {
+                        playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                    }
+                }
             }
         });
 
+        // --- KEY INTERCEPTOR ---
         window.addEventListener('keydown', function(event) {
-            if (event.key === "BrowserBack" || event.key === "Escape") {
-                event.preventDefault(); event.stopPropagation(); 
+            const blockedKeys = ["BrowserBack", "Escape", "Back", "GoBack", "Return", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "MediaPlayPause"];
+            if (blockedKeys.includes(event.key)) {
+                event.preventDefault(); 
+                event.stopPropagation(); 
             }
             if (activeSenderId) {
                 try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, { type: "KEY_PRESS", key: event.key, code: event.code }); } catch (e) {}
