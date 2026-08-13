@@ -436,7 +436,7 @@
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
     <!-- ALTE UI (Default) -->
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.5.4</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.5.5.5</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -490,11 +490,14 @@
     <video id="cast-video"></video>
 
     <script>
-        const PLAYER_VERSION = "2.5.5.4";
+        const PLAYER_VERSION = "2.5.5.5";
+        let curtainActive = false;
+        let curtainTimer = null;
+        
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
             if (vDisp) vDisp.style.display = 'none';
-        }, 5000);
+        }, 3000);
 
         const SVG_PLAY = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>';
         const SVG_PAUSE = '<svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
@@ -551,13 +554,10 @@
         const gridContent = document.getElementById('grid-content');
         const loadingSpinner = document.getElementById('loading-spinner');
 
-        // --- DIE NEUE ZENTRALE POSTSTELLE (BUGFIX FÜR VERBINDUNGSABBRÜCHE) ---
         function sendToPython(payload) {
             try {
-                // Nativer Broadcast an alle aktiven Verbindungen
                 context.sendCustomMessage(CUSTOM_CHANNEL, undefined, payload);
             } catch (err) {
-                // Fallback, falls undefined nicht unterstützt wird
                 if (activeSenderId) {
                     try { context.sendCustomMessage(CUSTOM_CHANNEL, activeSenderId, payload); } catch(e) {}
                 }
@@ -756,14 +756,19 @@
                 }
             }
             else if (data.type === "SET_BACKGROUND") {
-                document.getElementById('version-display').style.display = 'none'; 
+                document.getElementById('version-display').style.display = 'block'; 
+                setTimeout(() => {
+                    const vDisp = document.getElementById('version-display');
+                    if (vDisp) vDisp.style.display = 'none';
+                }, 3000);
+
                 if (data.url) {
                     bgImageElement.src = data.url;
                     let currentState = playerManager.getPlayerState();
                     if (currentState === 'IDLE' || currentState === 'BUFFERING' || !currentState) {
                         bgImageElement.style.opacity = "1.0";
                     } else {
-                        bgImageElement.style.opacity = "0.15";
+                        bgImageElement.style.opacity = "0";
                     }
                 } else {
                     bgImageElement.style.opacity = "0";
@@ -801,7 +806,7 @@
                 }
                 if (data.bg_image) { 
                     bgImageElement.src = data.bg_image; 
-                    bgImageElement.style.opacity = "0.5"; 
+                    bgImageElement.style.opacity = "1.0"; 
                 }
                 
                 if (previewTimer) clearTimeout(previewTimer);
@@ -1081,10 +1086,20 @@
             }
 
             else if (data.type === "LOAD_VIDEO") {
-                document.getElementById('version-display').style.display = 'none';
-                loadingSpinner.style.display = "none";
+                document.getElementById('version-display').style.display = 'block';
+                loadingSpinner.style.display = "block";
                 
-                // --- BUGFIX: Setze Status direkt auf IDLE, um Phantom-Auslösungen für Python-Autoplay zu blockieren ---
+                curtainActive = true;
+                if (curtainTimer) clearTimeout(curtainTimer);
+                curtainTimer = setTimeout(() => {
+                    curtainActive = false;
+                    document.getElementById('version-display').style.display = 'none';
+                    if (lastPlayerState === 'PLAYING' || lastPlayerState === 'PAUSED') {
+                        bgImageElement.style.opacity = "0";
+                        loadingSpinner.style.display = "none";
+                    }
+                }, 3000);
+                
                 lastPlayerState = "IDLE";
                 
                 if (data.preset === "prime_pro") {
@@ -1116,6 +1131,8 @@
                     bgImageElement.src = data.bg_image;
                     if (data.preset === "prime_pro") {
                         bgImageElement.style.opacity = "0.5";
+                    } else {
+                        bgImageElement.style.opacity = "1.0";
                     }
                 } else if (data.preset !== "prime_pro") {
                     bgImageElement.style.opacity = "0";
@@ -1177,8 +1194,15 @@
                         
                         if (currentState === 'IDLE' || (currentState === 'BUFFERING' && document.getElementById('status-icon').innerHTML !== SVG_ERROR)) {
                             bgImageElement.style.opacity = "1.0";
+                            loadingSpinner.style.display = "block";
                         } else if (currentState === 'PLAYING' || currentState === 'PAUSED') {
-                            bgImageElement.style.opacity = "0.15";
+                            if (!curtainActive) {
+                                bgImageElement.style.opacity = "0";
+                                loadingSpinner.style.display = "none";
+                            } else {
+                                bgImageElement.style.opacity = "1.0";
+                                loadingSpinner.style.display = "block";
+                            }
                         }
 
                         if (currentState !== lastPlayerState) {
