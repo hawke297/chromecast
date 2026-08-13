@@ -16,7 +16,7 @@
             --ui-bottom-offset: 0px; 
             --ui-side-margin: 0px; 
             --ui-border-radius: 0px; 
-            --title-display: block;
+            --title-display: -webkit-box; /* Geändert für Line-Clamp */
         }
 
         body { 
@@ -116,8 +116,8 @@
             top: 30px; 
             left: 50%; 
             transform: translateX(-50%); 
-            padding: 10px 30px; 
-            font-size: 24px; 
+            padding: 15px 40px; 
+            font-size: 26px; 
             font-weight: bold; 
             opacity: 0; 
             z-index: 9998; 
@@ -129,7 +129,18 @@
             text-shadow: var(--ui-text-shadow); 
             display: var(--title-display); 
             color: white; 
+            
+            /* Neue Text-Formatierung (Zentriert, Max 4 Zeilen, Ellipsis) */
+            text-align: center;
+            max-width: 75vw;
+            line-height: 1.4;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        
         
         #progress-ui { 
             position: absolute; 
@@ -719,7 +730,7 @@
                 if (data.clock_color) root.style.setProperty('--clock-color', data.clock_color);
                 if (data.progress_color) root.style.setProperty('--progress-color', data.progress_color);
                 
-                if (data.title_visible !== undefined) root.style.setProperty('--title-display', data.title_visible ? 'block' : 'none');
+                if (data.title_visible !== undefined) root.style.setProperty('--title-display', data.title_visible ? '-webkit-box' : 'none');
                 if (data.title_position) {
                     const titleUi = document.getElementById('title-ui');
                     if (data.title_position === 'bottom') { 
@@ -797,8 +808,14 @@
                 loadingSpinner.style.display = 'block';
                 
                 if (data.title) {
-                    document.getElementById('title-ui').innerText = data.title;
+                    let formattedTitle = data.title;
+                    if (formattedTitle.startsWith("Folge ") && formattedTitle.includes(" - ")) {
+                        formattedTitle = formattedTitle.replace(" - ", "<br>");
+                    }
+                    document.getElementById('title-ui').innerHTML = formattedTitle;
                     document.getElementById('title-ui').classList.add('ui-visible');
+                    
+                    // Prime Player behält das alte Format
                     document.getElementById('prime-title').innerText = data.title;
                     document.getElementById('prime-actors').innerHTML = "";
                     document.getElementById('prime-tags').innerHTML = "";
@@ -1121,7 +1138,12 @@
                 if (recPreviewTimer) clearTimeout(recPreviewTimer);
                 
                 if (data.title) {
-                    document.getElementById('title-ui').innerText = data.title;
+                    let formattedTitle = data.title;
+                    if (formattedTitle.startsWith("Folge ") && formattedTitle.includes(" - ")) {
+                        formattedTitle = formattedTitle.replace(" - ", "<br>");
+                    }
+                    document.getElementById('title-ui').innerHTML = formattedTitle;
+                    
                     if (data.preset !== "prime_pro") {
                         document.getElementById('title-ui').classList.remove('ui-visible'); 
                     }
