@@ -278,7 +278,7 @@
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.5</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.6</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -590,8 +590,12 @@
                 
                 // 1. MEDIA FULLSCREEN MODE
                 if (data.layout === "MEDIA") {
-                    document.getElementById('driving-ui-container').style.display = 'none';
                     const fsContainer = document.getElementById('dt-fullscreen-media-container');
+                    
+                    // NEU: Wir prüfen, ob wir gerade ERST in den Media-Modus gewechselt sind
+                    const isEnteringMedia = (fsContainer.style.display !== 'flex'); 
+                    
+                    document.getElementById('driving-ui-container').style.display = 'none';
                     fsContainer.style.display = 'flex';
                     
                     const mediaSlot = document.getElementById('dt-fullscreen-media');
@@ -602,8 +606,9 @@
                             mediaSlot.innerHTML = `<img src="${data.media_url}">`;
                         }
                         mediaSlot.dataset.url = data.media_url;
-                    } else {
-                        // NEU: Das Medium ist schon geladen. Wenn es ein Video ist, starte es neu!
+                    } else if (isEnteringMedia) {
+                        // NEU: Nur neustarten, wenn wir von der FRAGE zurückgekehrt sind!
+                        // (Verhindert Neustart, wenn Python nur das Menü einblendet)
                         const vid = document.getElementById('dt-video');
                         if (vid) {
                             vid.currentTime = 0;
