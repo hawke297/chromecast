@@ -189,6 +189,16 @@
         }
         .dt-overlay-controls.visible { opacity: 1; pointer-events: auto; }
 
+        /* NEU: Transparenter Timer im Vollbild-Modus */
+        .dt-fullscreen-timer {
+            position: absolute; top: 30px; right: 40px; z-index: 9200;
+            font-size: 36px; font-weight: bold; font-family: monospace;
+            color: rgba(255, 255, 255, 0.35); /* Stark transparentes Weiß */
+            background: rgba(0, 0, 0, 0.3); /* Leicht abgedunkelter Hintergrund */
+            padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+        }
+
         /* 2. TEXT/FRAGEN ANSICHT */
         .dt-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px; }
         .dt-timer { font-size: 30px; font-weight: bold; font-family: monospace; color: #a6e3a1; background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 8px; }
@@ -268,7 +278,7 @@
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.4</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.5</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -327,6 +337,7 @@
     
     <!-- FÜHRERSCHEIN UI - MEDIEN VOLLBILD ANSICHT -->
     <div id="dt-fullscreen-media-container" class="dt-fullscreen-media-container">
+        <div id="dt-fullscreen-timer" class="dt-fullscreen-timer">45:00</div>
         <div id="dt-fullscreen-media" class="dt-fullscreen-media"></div>
         <div id="dt-overlay-controls" class="dt-overlay-controls"></div>
     </div>
@@ -562,12 +573,20 @@
                 if (vid) { vid.currentTime = 0; vid.play().catch(e=>{}); }
             }
             else if (data.type === "UPDATE_EXAM_TIMER") {
-                // Der TV ändert NUR noch die Zahl, ohne alles neu zu zeichnen!
                 const timerEl = document.getElementById('dt-timer');
                 if (timerEl) timerEl.innerText = data.timer;
+                // NEU: Timer im Vollbild updaten
+                const fsTimerEl = document.getElementById('dt-fullscreen-timer');
+                if (fsTimerEl) fsTimerEl.innerText = data.timer;
             }
             else if (data.type === "DRIVING_EXAM_UPDATE") {
                 document.body.classList.add("preset-driving-test");
+                
+                // Beide Timer initial setzen (falls gesendet)
+                if (data.timer) {
+                    const t1 = document.getElementById('dt-timer'); if (t1) t1.innerText = data.timer;
+                    const t2 = document.getElementById('dt-fullscreen-timer'); if (t2) t2.innerText = data.timer;
+                }
                 
                 // 1. MEDIA FULLSCREEN MODE
                 if (data.layout === "MEDIA") {
@@ -583,9 +602,15 @@
                             mediaSlot.innerHTML = `<img src="${data.media_url}">`;
                         }
                         mediaSlot.dataset.url = data.media_url;
+                    } else {
+                        // NEU: Das Medium ist schon geladen. Wenn es ein Video ist, starte es neu!
+                        const vid = document.getElementById('dt-video');
+                        if (vid) {
+                            vid.currentTime = 0;
+                            vid.play().catch(e => {});
+                        }
                     }
                     
-                    // Overlay ein/ausblenden
                     const overlay = document.getElementById('dt-overlay-controls');
                     if (data.media_overlay_visible) {
                         overlay.classList.add('visible');
@@ -593,7 +618,6 @@
                     } else {
                         overlay.classList.remove('visible');
                         
-                        // Wenn unsichtbar, starte die automatischen Timer!
                         if (data.media_url.endsWith('.mp4')) {
                             const vid = document.getElementById('dt-video');
                             if (vid) vid.onended = () => { sendToPython({type: "KEY_PRESS", key: "MEDIA_ENDED"}); };
@@ -619,7 +643,6 @@
                     document.getElementById('dt-fullscreen-media-container').style.display = 'none';
                     document.getElementById('driving-ui-container').style.display = 'flex';
                     
-                    if (data.timer) document.getElementById('dt-timer').innerText = data.timer;
                     if (data.meta) document.getElementById('dt-meta-text').innerText = data.meta;
                     if (data.question) document.getElementById('dt-question-text').innerText = data.question;
                     
@@ -629,7 +652,6 @@
                     actWrap.innerHTML = '';
                     
                     if (data.is_text_input) {
-                        // Numpad in den zentrierten Bereich
                         let htmlStr = `<div class="dt-numpad-container">`;
                         htmlStr += `<div class="dt-input-display">${data.current_input || " "}</div>`;
                         htmlStr += `<div class="dt-numpad"></div></div>`;
@@ -645,7 +667,6 @@
                             btn.innerText = k; pad.appendChild(btn);
                         });
                         
-                        // Action Buttons in den unteren Bereich (Submit ist Index 12)
                         const submitBtn = document.createElement('div');
                         submitBtn.className = `dt-btn action-btn submit-btn ${12 === data.focus_idx ? 'focused' : ''}`;
                         submitBtn.innerHTML = `<div>${data.submit_text}</div>`;
@@ -663,13 +684,11 @@
                             btn.className = `dt-btn ${idx === data.focus_idx ? 'focused' : ''} ${ans.checked ? 'checked' : ''}`;
                             
                             if (ans.is_action) {
-                                // Fliegt automatisch in den Bereich ganz unten!
                                 btn.classList.add('action-btn');
                                 if (ans.action_color === 'green') btn.classList.add('submit-btn');
                                 btn.innerHTML = `<div>${ans.text}</div>`;
                                 actWrap.appendChild(btn);
                             } else {
-                                // Fliegt automatisch in den zentrierten Checkbox-Bereich!
                                 btn.innerHTML = `<div class="dt-checkbox">${ans.checked ? '✓' : ''}</div><div>${ans.text}</div>`;
                                 ansWrap.appendChild(btn);
                             }
