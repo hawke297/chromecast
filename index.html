@@ -195,7 +195,6 @@
         
         /* MULTIPLE CHOICE & ALLGEMEINE BUTTONS */
         .dt-btn { background: rgba(255,255,255,0.1); border: 4px solid transparent; border-radius: 10px; padding: 15px 20px; font-size: 22px; transition: 0.1s; display: flex; align-items: center; box-sizing: border-box; }
-        /* Neue Fokus-Regel: Verhindert abschneiden durch Box-Shadow statt Scale */
         .dt-btn.focused { border-color: #89b4fa; background: rgba(137, 180, 250, 0.2); box-shadow: 0 0 15px rgba(137, 180, 250, 0.5) inset; }
         .dt-btn.checked { background: rgba(166, 227, 161, 0.2); border-color: #a6e3a1; }
         .dt-checkbox { display: inline-block; width: 28px; height: 28px; border: 3px solid white; border-radius: 6px; margin-right: 15px; text-align: center; line-height: 28px; font-weight: bold; font-size: 20px;}
@@ -262,7 +261,7 @@
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.1</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.2</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -324,6 +323,7 @@
         <div id="dt-overlay-controls" class="dt-overlay-controls"></div>
     </div>
     
+    <!-- Unsichtbarer Audio-Player für Spotify Connect Tunnel -->
     <audio id="spotify-audio" autoplay></audio>
     <video id="cast-video"></video>
 
@@ -540,115 +540,104 @@
                     else { bgImageElement.style.opacity = "0"; }
                 } else { bgImageElement.style.opacity = "0"; }
             }
-            else if (data.type === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro")) {
+            else if (data.type === "SHOW_PROGRESS" && !document.body.classList.contains("preset-prime-pro") && !document.body.classList.contains("preset-driving-test")) {
                 showCustomUI(false); 
             }
-            else if (data.type === "PREPARE_VIDEO") {
-                try { playerManager.stop(); } catch(e) {}
-                
-                if (data.preset === "prime_pro") document.body.classList.add("preset-prime-pro");
-                else document.body.classList.remove("preset-prime-pro");
-
-                document.getElementById('left-menu-container').style.transform = "translateX(-100%)";
-                document.getElementById('bottom-menu-container').style.transform = "translateY(100%)";
-                document.getElementById('prime-osd-container').classList.remove('osd-visible', 'recs-focused', 'cc-focused');
-                
-                gridUi.style.display = 'none'; gridUi.style.filter = 'none';
-                document.body.style.backgroundColor = "#000000";
-                
-                document.getElementById('cast-video').style.display = 'block';
-                document.getElementById('version-display').style.display = 'none';
-                loadingSpinner.style.display = 'block';
-                
-                if (data.title) {
-                    let formattedTitle = data.title;
-                    if (formattedTitle.startsWith("Folge ") && formattedTitle.includes(" - ")) { formattedTitle = formattedTitle.replace(" - ", "<br>"); }
-                    document.getElementById('title-ui').innerHTML = formattedTitle;
-                    document.getElementById('title-ui').classList.add('ui-visible');
-                    document.getElementById('prime-title').innerText = data.title;
-                    document.getElementById('prime-actors').innerHTML = ""; document.getElementById('prime-tags').innerHTML = ""; document.getElementById('prime-recs-grid').innerHTML = "";
-                }
-                if (data.bg_image) { bgImageElement.src = data.bg_image; bgImageElement.style.opacity = "1.0"; }
-                if (previewTimer) clearTimeout(previewTimer);
-                if (recPreviewTimer) clearTimeout(recPreviewTimer);
-                document.querySelectorAll('video.video-layer').forEach(v => { v.pause(); v.remove(); });
+            else if (data.type === "START_BACKGROUND_AUDIO") {
+                const audio = document.getElementById('spotify-audio');
+                if (data.url) { audio.src = data.url; audio.play().catch(e => console.log(e)); } 
+                else { audio.pause(); }
             }
-            else if (data.type === "UPDATE_METADATA") {
-                if (data.title) document.getElementById('prime-title').innerText = data.title;
-                const actorsDiv = document.getElementById('prime-actors'); actorsDiv.innerHTML = "";
-                if (data.actors.length > 0) {
-                    data.actors.forEach((a, i) => {
-                        let html = `<div class="actor-group">`;
-                        if (a.img) html += `<img class="actor-img" src="${a.img}" onerror="this.style.display='none'">`;
-                        html += `<div class="actor-name" id="prime-row-0-col-${i*2}">${a.name}</div><div class="actor-fav-btn" id="prime-row-0-col-${i*2 + 1}">♡</div></div>`;
-                        actorsDiv.insertAdjacentHTML('beforeend', html);
-                    });
-                } else { actorsDiv.innerHTML = "<div style='color:#ccc;'>Keine Darsteller gefunden</div>"; }
-                
-                const tagsDiv = document.getElementById('prime-tags'); tagsDiv.innerHTML = "";
-                data.tags.forEach((t, i) => { let html = `<div class="tag-badge" id="prime-row-6-col-${i}">${t.name}</div>`; tagsDiv.insertAdjacentHTML('beforeend', html); });
-
-                const recsDiv = document.getElementById('prime-recs-grid'); recsDiv.innerHTML = "";
-                data.recs.forEach((rec, i) => {
-                    let row = (i % 2) + 4; let col = Math.floor(i / 2); 
-                    let d = document.createElement('div'); d.className = "prime-rec-tile"; d.id = `prime-row-${row}-col-${col}`; d.dataset.row = row; d.dataset.col = col;
-                    let mediaHtml = '<div class="media-container">';
-                    let imageSrc = rec.image || rec.video_preview; 
-                    mediaHtml += `<img class="media-layer" src="${imageSrc}" onerror="this.style.display='none'">`;
-                    if (rec.video_preview) mediaHtml += `<video class="video-layer" src="${rec.video_preview}" loop muted playsinline style="visibility: hidden;"></video>`;
-                    mediaHtml += '</div>';
-                    let titleHtml = `<div class="prime-rec-title"><span>${rec.title}</span></div>`;
-                    d.innerHTML = mediaHtml + titleHtml;
-                    recsDiv.appendChild(d);
-                });
+            else if (data.type === "REPLAY_MEDIA") {
+                const vid = document.getElementById('dt-video');
+                if (vid) { vid.currentTime = 0; vid.play().catch(e=>{}); }
             }
-            else if (data.type === "UPDATE_OSD") {
-                const osd = document.getElementById('prime-osd-container');
-                if (data.visible) osd.classList.add('osd-visible'); else osd.classList.remove('osd-visible');
-                if (data.row >= 4 && data.row <= 5) osd.classList.add('recs-focused'); else osd.classList.remove('recs-focused');
-                if (data.row === 3 || data.row === 6) osd.classList.add('cc-focused'); else osd.classList.remove('cc-focused');
-                document.getElementById('prime-play-icon').innerHTML = data.is_playing ? SVG_PAUSE : SVG_PLAY;
-                document.getElementById('prime-fav-icon').innerHTML = data.is_favorite ? SVG_FAV_ON : SVG_FAV_OFF;
+            else if (data.type === "UPDATE_EXAM_TIMER") {
+                // Der TV ändert NUR noch die Zahl, ohne alles neu zu zeichnen!
+                const timerEl = document.getElementById('dt-timer');
+                if (timerEl) timerEl.innerText = data.timer;
+            }
+            else if (data.type === "DRIVING_EXAM_UPDATE") {
+                document.body.classList.add("preset-driving-test");
                 
-                const spinner = document.getElementById('translate-spinner');
-                if (data.is_translating) { spinner.style.display = 'block'; document.getElementById('prime-row-2-col-3').style.borderColor = "#ffcc00"; } 
-                else { spinner.style.display = 'none'; document.getElementById('prime-row-2-col-3').style.borderColor = "transparent"; }
-
-                if (data.rich_actors) {
-                    data.rich_actors.forEach((a, i) => {
-                        let favBtn = document.getElementById(`prime-row-0-col-${i*2 + 1}`);
-                        if (favBtn) { favBtn.innerText = a.is_fav ? '♥' : '♡'; if (a.is_fav) favBtn.classList.add('is-fav'); else favBtn.classList.remove('is-fav'); }
+                // 1. MEDIA FULLSCREEN MODE
+                if (data.layout === "MEDIA") {
+                    document.getElementById('driving-ui-container').style.display = 'none';
+                    const fsContainer = document.getElementById('dt-fullscreen-media-container');
+                    fsContainer.style.display = 'flex';
+                    
+                    const mediaSlot = document.getElementById('dt-fullscreen-media');
+                    if (mediaSlot.dataset.url !== data.media_url) {
+                        if (data.media_url.endsWith('.mp4')) {
+                            // OHNE loop Attribut -> stoppt am Ende des Videos!
+                            mediaSlot.innerHTML = `<video id="dt-video" src="${data.media_url}" autoplay></video>`;
+                        } else {
+                            mediaSlot.innerHTML = `<img src="${data.media_url}">`;
+                        }
+                        mediaSlot.dataset.url = data.media_url;
+                    }
+                    
+                    const overlay = document.getElementById('dt-overlay-controls');
+                    overlay.innerHTML = '';
+                    data.answers.forEach((ans, idx) => {
+                        const btn = document.createElement('div');
+                        btn.className = `dt-btn action-btn ${idx === data.focus_idx ? 'focused' : ''}`;
+                        btn.innerHTML = `<div>${ans.text}</div>`;
+                        overlay.appendChild(btn);
                     });
-                }
                 
-                if (data.rich_tags) {
-                    data.rich_tags.forEach((t, i) => {
-                        let tagBtn = document.getElementById(`prime-row-6-col-${i}`);
-                        if (tagBtn) { if (t.is_fav) tagBtn.classList.add('is-fav'); else tagBtn.classList.remove('is-fav'); }
-                    });
-                }
-
-                let cols = [0, 1, 2, 3]; let ccRow = (data.row === 3 || document.getElementById('prime-row-3-col-0')) ? 3 : 6;
-                cols.forEach(c => { let b = document.getElementById(`prime-row-${ccRow}-col-${c}`); if (b) b.classList.remove('is-active-cc'); });
-                if (data.active_cc === "off" && document.getElementById(`prime-row-${ccRow}-col-0`)) document.getElementById(`prime-row-${ccRow}-col-0`).classList.add('is-active-cc');
-                if (data.active_cc === "en" && document.getElementById(`prime-row-${ccRow}-col-1`)) document.getElementById(`prime-row-${ccRow}-col-1`).classList.add('is-active-cc');
-                if (data.active_cc === "de" && document.getElementById(`prime-row-${ccRow}-col-2`)) document.getElementById(`prime-row-${ccRow}-col-2`).classList.add('is-active-cc');
-
-                document.querySelectorAll('#prime-osd-container .focused').forEach(e => e.classList.remove('focused'));
-                if (recPreviewTimer) clearTimeout(recPreviewTimer);
-                document.querySelectorAll('#prime-recs-grid video.video-layer').forEach(v => { v.pause(); v.style.visibility = 'hidden'; });
-                document.querySelectorAll('#prime-recs-grid .is-playing').forEach(e => e.classList.remove('is-playing'));
-
-                const target = document.getElementById(`prime-row-${data.row}-col-${data.col}`);
-                if (target) {
-                    target.classList.add('focused');
-                    if (data.row >= 4 && data.row <= 5) {
-                        target.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
-                        recPreviewTimer = setTimeout(() => {
-                            let v = target.querySelector('video.video-layer');
-                            if (v) { v.style.visibility = "visible"; target.classList.add('is-playing'); let p = v.play(); if (p !== undefined) p.catch(e => {}); } 
-                            else { target.classList.add('is-playing'); }
-                        }, 700);
+                // 2. QUESTIONS MODE
+                } else {
+                    // Falls noch ein Video lief, pausieren wir es jetzt!
+                    const vid = document.getElementById('dt-video');
+                    if (vid) vid.pause();
+                    
+                    document.getElementById('dt-fullscreen-media-container').style.display = 'none';
+                    document.getElementById('driving-ui-container').style.display = 'flex';
+                    
+                    if (data.timer) document.getElementById('dt-timer').innerText = data.timer;
+                    if (data.meta) document.getElementById('dt-meta-text').innerText = data.meta;
+                    if (data.question) document.getElementById('dt-question-text').innerText = data.question;
+                    
+                    const ansCol = document.getElementById('dt-answer-col');
+                    
+                    if (data.is_text_input) {
+                        let htmlStr = "";
+                        // "Medium ansehen" Button, falls wir von Vollbild auf Text gesprungen sind
+                        if (data.has_media) {
+                            htmlStr += `<div class="dt-btn action-btn ${13 === data.focus_idx ? 'focused' : ''}" style="margin-bottom: 15px;"><div>📷 MEDIUM ANSEHEN</div></div>`;
+                        }
+                        htmlStr += `<div class="dt-input-display" id="dt-input-display">${data.current_input || " "}</div>`;
+                        ansCol.innerHTML = htmlStr;
+                        
+                        const pad = document.createElement('div'); 
+                        pad.className = 'dt-numpad';
+                        // Das Komma ist jetzt dabei!
+                        const keys = ['1','2','3','4','5','6','7','8','9','Löschen','0',',', data.submit_text];
+                        
+                        keys.forEach((k, idx) => {
+                            const btn = document.createElement('div');
+                            btn.className = `dt-num-btn ${idx === data.focus_idx ? 'focused' : ''}`;
+                            if (k === 'Löschen') btn.classList.add('action');
+                            if (idx === 12) btn.classList.add('submit');
+                            btn.innerText = k; pad.appendChild(btn);
+                        });
+                        ansCol.appendChild(pad);
+                        
+                    } else {
+                        ansCol.innerHTML = '';
+                        data.answers.forEach((ans, idx) => {
+                            const btn = document.createElement('div');
+                            btn.className = `dt-btn ${idx === data.focus_idx ? 'focused' : ''} ${ans.checked ? 'checked' : ''}`;
+                            if (ans.is_action) {
+                                btn.classList.add('action-btn');
+                                if (ans.action_color === 'green') btn.classList.add('submit-btn');
+                                btn.innerHTML = `<div>${ans.text}</div>`; // KEINE CHECKBOX MEHR!
+                            } else {
+                                btn.innerHTML = `<div class="dt-checkbox">${ans.checked ? '✓' : ''}</div><div>${ans.text}</div>`;
+                            }
+                            ansCol.appendChild(btn);
+                        });
                     }
                 }
             }
