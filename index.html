@@ -16,7 +16,7 @@
             --ui-bottom-offset: 0px; 
             --ui-side-margin: 0px; 
             --ui-border-radius: 0px; 
-            --title-display: -webkit-box; 
+            --title-display: -webkit-box; /* Geändert für Line-Clamp */
         }
 
         body { 
@@ -130,15 +130,17 @@
             display: var(--title-display); 
             color: white; 
             
+            /* Neue Text-Formatierung (Zentriert, Max 4 Zeilen, Ellipsis) */
             text-align: center;
             max-width: 75vw;
             line-height: 1.4;
             -webkit-line-clamp: 4;
-            line-clamp: 4; 
+            line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        
         
         #progress-ui { 
             position: absolute; 
@@ -374,6 +376,47 @@
         .prime-rec-tile.is-playing .prime-rec-title span { padding-left: 100%; animation: marquee 6s linear infinite; }
         .prime-rec-tile.focused { border-color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.9); }
 
+        /* --- FÜHRERSCHEIN PRESET --- */
+        body.preset-driving-test #smart-tv-ui, 
+        body.preset-driving-test #prime-osd-container, 
+        body.preset-driving-test #clock-ui, 
+        body.preset-driving-test #title-ui { display: none !important; }
+        
+        #driving-ui-container {
+            display: none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(135deg, #1e1e2e 0%, #11111b 100%);
+            z-index: 9000; padding: 40px 60px; box-sizing: border-box; flex-direction: column;
+        }
+        body.preset-driving-test #driving-ui-container { display: flex; }
+
+        .dt-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; }
+        .dt-timer { font-size: 32px; font-weight: bold; font-family: monospace; color: #a6e3a1; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; }
+        .dt-meta { font-size: 20px; color: #cdd6f4; }
+        
+        .dt-question { font-size: 36px; font-weight: bold; margin-bottom: 30px; line-height: 1.3; }
+        
+        .dt-content { display: flex; flex: 1; gap: 40px; overflow: hidden; }
+        .dt-media-col { flex: 1; background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+        .dt-media-col img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .dt-media-col video { width: 100%; height: 100%; object-fit: contain; }
+        
+        .dt-answer-col { flex: 1; display: flex; flex-direction: column; gap: 15px; justify-content: center; }
+        
+        /* Multiple Choice Buttons */
+        .dt-btn { background: rgba(255,255,255,0.1); border: 4px solid transparent; border-radius: 12px; padding: 20px; font-size: 24px; transition: 0.2s; display: flex; align-items: center; }
+        .dt-btn.focused { border-color: #89b4fa; background: rgba(137, 180, 250, 0.2); transform: scale(1.02); box-shadow: 0 0 20px rgba(137, 180, 250, 0.4); }
+        .dt-btn.checked { background: rgba(166, 227, 161, 0.2); border-color: #a6e3a1; }
+        .dt-checkbox { display: inline-block; width: 30px; height: 30px; border: 3px solid white; border-radius: 6px; margin-right: 20px; text-align: center; line-height: 30px; font-weight: bold; }
+        .dt-btn.checked .dt-checkbox { background: #a6e3a1; color: black; border-color: #a6e3a1; }
+        
+        /* Numpad für Text-Eingaben */
+        .dt-input-display { font-size: 40px; text-align: center; background: rgba(0,0,0,0.5); border: 2px solid #89b4fa; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: monospace; min-height: 50px; }
+        .dt-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .dt-num-btn { background: rgba(255,255,255,0.1); border: 4px solid transparent; border-radius: 12px; padding: 20px; font-size: 30px; font-weight: bold; text-align: center; transition: 0.2s; }
+        .dt-num-btn.focused { border-color: #89b4fa; background: rgba(137, 180, 250, 0.2); transform: scale(1.05); }
+        .dt-num-btn.action { background: rgba(243, 139, 168, 0.2); }
+        .dt-num-btn.submit { background: rgba(166, 227, 161, 0.2); grid-column: span 3; }
+
         /* --- HAUPT GRID INKL. HERO BANNER --- */
         #smart-tv-ui { 
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: none; background-color: transparent; 
@@ -496,13 +539,28 @@
         
     </div>
 
+    <!-- FÜHRERSCHEIN UI -->
+    <div id="driving-ui-container">
+        <div class="dt-header">
+            <div class="dt-meta" id="dt-meta-text">Frage 1 | 3 Fehlerpunkte</div>
+            <div class="dt-timer" id="dt-timer">45:00</div>
+        </div>
+        <div class="dt-question" id="dt-question-text">Lädt...</div>
+        <div class="dt-content">
+            <div class="dt-media-col" id="dt-media-col"></div>
+            <div class="dt-answer-col" id="dt-answer-col"></div>
+        </div>
+    </div>
+    
+    <!-- Unsichtbarer Audio-Player für Spotify Connect Tunnel -->
+    <audio id="spotify-audio" autoplay></audio>
+
     <video id="cast-video"></video>
 
     <script>
         const PLAYER_VERSION = "2.5.5.5";
         let curtainActive = false;
         let curtainTimer = null;
-        let currentMediaTitle = "";
         
         setTimeout(() => {
             const vDisp = document.getElementById('version-display');
@@ -704,36 +762,6 @@
             if (event.mediaStatus && event.mediaStatus.idleReason === 'FINISHED') {
                 sendToPython({ type: "KEY_PRESS", key: "VIDEO_ENDED", code: "VIDEO_ENDED" });
             }
-            
-            let media = playerManager.getMediaInformation();
-            if (media && media.metadata && media.metadata.title) {
-                let newTitle = media.metadata.title;
-                
-                if (newTitle !== currentMediaTitle && currentMediaTitle !== "") {
-                    currentMediaTitle = newTitle;
-                    
-                    if (media.customData) {
-                        if (media.customData.bg_image) {
-                            bgImageElement.src = media.customData.bg_image;
-                        }
-                        if (media.customData.skips) {
-                            currentSkips = media.customData.skips;
-                            markersDrawn = false;
-                            document.getElementById('markers-container').innerHTML = '';
-                        }
-                    }
-                    
-                    let formattedTitle = newTitle;
-                    if (formattedTitle.startsWith("Folge ") && formattedTitle.includes(" - ")) {
-                        formattedTitle = formattedTitle.replace(" - ", "<br>");
-                    }
-                    document.getElementById('title-ui').innerHTML = formattedTitle;
-                    document.getElementById('title-ui').classList.add('ui-visible');
-                    setTimeout(() => { document.getElementById('title-ui').classList.remove('ui-visible'); }, 4000);
-                    
-                    sendToPython({ type: "REMOTE_ACTION", action: "QUEUE_TRANSITION", title: newTitle });
-                }
-            }
         });
 
         context.addCustomMessageListener(CUSTOM_CHANNEL, function(customEvent) {
@@ -844,6 +872,7 @@
                     document.getElementById('title-ui').innerHTML = formattedTitle;
                     document.getElementById('title-ui').classList.add('ui-visible');
                     
+                    // Prime Player behält das alte Format
                     document.getElementById('prime-title').innerText = data.title;
                     document.getElementById('prime-actors').innerHTML = "";
                     document.getElementById('prime-tags').innerHTML = "";
@@ -1053,8 +1082,8 @@
                 gridContent.innerHTML = ""; 
                 
                 if (data.hero_data) {
-                    let favText = data.hero_data.is_fav ? '★ Als Favorit gespeichert' : '☆ Zu Favoriten hinzufügen';
-                    let favClass = data.hero_data.is_fav ? 'is-fav' : '';
+                    let favText = data.is_hero_fav ? '★ Als Favorit gespeichert' : '☆ Zu Favoriten hinzufügen';
+                    let favClass = data.is_hero_fav ? 'is-fav' : '';
                     let focusedClass = data.focus_index === -1 ? 'focused' : '';
                     
                     let heroHtml = `<div id="grid-hero-container" class="${focusedClass}">`;
@@ -1131,8 +1160,6 @@
             }
 
             else if (data.type === "LOAD_VIDEO") {
-                currentMediaTitle = data.title || "";
-                
                 document.getElementById('version-display').style.display = 'block';
                 loadingSpinner.style.display = "block";
                 
@@ -1330,52 +1357,6 @@
                     }
                 }, 1000); 
             }
-            // DIE NEUE WARTESCHLANGEN-FUNKTION
-            else if (data.type === "QUEUE_NEXT") {
-                let mediaInfo = new cast.framework.messages.MediaInformation();
-                mediaInfo.contentId = data.url;
-                mediaInfo.contentType = data.url.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4';
-                
-                mediaInfo.metadata = new cast.framework.messages.GenericMediaMetadata();
-                mediaInfo.metadata.title = data.title || "Custom Stream";
-                
-                mediaInfo.customData = {
-                    bg_image: data.bg_image,
-                    skips: data.skips || []
-                };
-
-                let tracks = [];
-                if (data.vtt_en) {
-                    let trackEn = new cast.framework.messages.Track(1, cast.framework.messages.TrackType.TEXT);
-                    trackEn.trackContentId = data.vtt_en;
-                    trackEn.trackContentType = 'text/vtt';
-                    trackEn.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
-                    trackEn.name = 'Englisch (KI)';
-                    trackEn.language = 'en-US';
-                    tracks.push(trackEn);
-                }
-                if (data.vtt_de) {
-                    let trackDe = new cast.framework.messages.Track(2, cast.framework.messages.TrackType.TEXT);
-                    trackDe.trackContentId = data.vtt_de;
-                    trackDe.trackContentType = 'text/vtt';
-                    trackDe.subtype = cast.framework.messages.TextTrackType.SUBTITLES;
-                    trackDe.name = 'Deutsch (KI)';
-                    trackDe.language = 'de-DE';
-                    tracks.push(trackDe);
-                }
-                if (tracks.length > 0) mediaInfo.tracks = tracks;
-
-                let queueItem = new cast.framework.messages.QueueItem();
-                queueItem.media = mediaInfo;
-                queueItem.autoplay = true;
-
-                if (data.active_cc === "en" && data.vtt_en) queueItem.activeTrackIds = [1];
-                else if (data.active_cc === "de" && data.vtt_de) queueItem.activeTrackIds = [2];
-
-                let request = new cast.framework.messages.QueueInsertItemsRequest([queueItem]);
-                playerManager.getQueueManager().insertItems(request);
-                consoleLog("Video zur Warteschlange hinzugefügt: " + data.title);
-            }
             else if (data.type === "CONTROL") {
                 if (data.action === "PLAY") playerManager.play();
                 else if (data.action === "PAUSE") playerManager.pause();
@@ -1415,6 +1396,70 @@
                         }, 500);
                     } else {
                         playerManager.seek(playerManager.getCurrentTimeSec() + data.value);
+                    }
+                }
+            }
+            else if (data.type === "START_BACKGROUND_AUDIO") {
+                const audio = document.getElementById('spotify-audio');
+                if (data.url) {
+                    audio.src = data.url;
+                    audio.play().catch(e => console.log("Audio Autoplay blockiert:", e));
+                } else {
+                    audio.pause();
+                }
+            }
+            else if (data.type === "DRIVING_EXAM_UPDATE") {
+                document.body.classList.add("preset-driving-test");
+                
+                // Timer & Meta
+                if (data.timer) document.getElementById('dt-timer').innerText = data.timer;
+                if (data.meta) document.getElementById('dt-meta-text').innerText = data.meta;
+                if (data.question) document.getElementById('dt-question-text').innerText = data.question;
+                
+                // Medien (Bilder oder Videos)
+                if (data.media_url !== undefined) {
+                    const mediaCol = document.getElementById('dt-media-col');
+                    if (!data.media_url) {
+                        mediaCol.style.display = 'none';
+                    } else {
+                        mediaCol.style.display = 'flex';
+                        if (data.media_url.endsWith('.mp4')) {
+                            mediaCol.innerHTML = `<video src="${data.media_url}" autoplay loop muted></video>`;
+                        } else {
+                            mediaCol.innerHTML = `<img src="${data.media_url}">`;
+                        }
+                    }
+                }
+                
+                // UI Rendern
+                if (data.answers) {
+                    const ansCol = document.getElementById('dt-answer-col');
+                    ansCol.innerHTML = '';
+                    
+                    if (data.is_text_input) {
+                        // Numpad Modus
+                        ansCol.innerHTML = `<div class="dt-input-display" id="dt-input-display">${data.current_input || " "}</div>`;
+                        const pad = document.createElement('div');
+                        pad.className = 'dt-numpad';
+                        const keys = ['1','2','3','4','5','6','7','8','9','Löschen','0','Fertig'];
+                        
+                        keys.forEach((k, idx) => {
+                            const btn = document.createElement('div');
+                            btn.className = `dt-num-btn ${idx === data.focus_idx ? 'focused' : ''}`;
+                            if (k === 'Löschen') btn.classList.add('action');
+                            if (k === 'Fertig') btn.classList.add('submit');
+                            btn.innerText = k;
+                            pad.appendChild(btn);
+                        });
+                        ansCol.appendChild(pad);
+                    } else {
+                        // Multiple Choice Modus
+                        data.answers.forEach((ans, idx) => {
+                            const btn = document.createElement('div');
+                            btn.className = `dt-btn ${idx === data.focus_idx ? 'focused' : ''} ${ans.checked ? 'checked' : ''}`;
+                            btn.innerHTML = `<div class="dt-checkbox">${ans.checked ? '✓' : ''}</div><div>${ans.text}</div>`;
+                            ansCol.appendChild(btn);
+                        });
                     }
                 }
             }
