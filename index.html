@@ -170,19 +170,23 @@
             z-index: 9000; padding: 40px 60px; box-sizing: border-box; flex-direction: column; overflow: hidden;
         }
         
-        /* 1. MEDIA FULLSCREEN ANSICHT */
+        /* 1. MEDIA FULLSCREEN ANSICHT (Echtes Vollbild!) */
         .dt-fullscreen-media-container {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #000; z-index: 9100; display: none; flex-direction: column;
         }
         .dt-fullscreen-media {
-            flex: 1; width: 100%; height: calc(100% - 130px); display: flex; align-items: center; justify-content: center; background: #000;
+            flex: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000;
         }
-        .dt-fullscreen-media img, .dt-fullscreen-media video { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .dt-fullscreen-media img, .dt-fullscreen-media video { max-width: 100vw; max-height: 100vh; object-fit: contain; }
+        
         .dt-overlay-controls {
-            height: 130px; display: flex; align-items: center; justify-content: center; gap: 30px;
-            background: linear-gradient(to top, rgba(0,0,0,1), transparent); padding-bottom: 20px;
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            height: 140px; display: flex; align-items: center; justify-content: center; gap: 30px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent); padding-bottom: 20px;
+            opacity: 0; transition: opacity 0.4s ease-in-out; pointer-events: none;
         }
+        .dt-overlay-controls.visible { opacity: 1; pointer-events: auto; }
 
         /* 2. TEXT/FRAGEN ANSICHT */
         .dt-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px; }
@@ -261,7 +265,7 @@
     <div id="left-menu-container"><div class="menu-track-left" id="left-menu-track"></div></div>
     <div id="bottom-menu-container"><div class="menu-track-bottom" id="bottom-menu-track"></div></div>
 
-    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.2</h1>
+    <h1 id="version-display" style="display: block;">hawke297 player | v2.6.0.3</h1>
     <img id="bg-image" />
     
     <div id="notification-layer" style="z-index: 10000;"></div>
@@ -369,6 +373,7 @@
             return request; 
         });
 
+        let mediaOverlayTimer = null;
         let timeUpdateInterval = null;
         let activeSenderId = null; 
         let lastPlayerState = null;
@@ -569,7 +574,6 @@
                     const mediaSlot = document.getElementById('dt-fullscreen-media');
                     if (mediaSlot.dataset.url !== data.media_url) {
                         if (data.media_url.endsWith('.mp4')) {
-                            // OHNE loop Attribut -> stoppt am Ende des Videos!
                             mediaSlot.innerHTML = `<video id="dt-video" src="${data.media_url}" autoplay></video>`;
                         } else {
                             mediaSlot.innerHTML = `<img src="${data.media_url}">`;
@@ -577,7 +581,24 @@
                         mediaSlot.dataset.url = data.media_url;
                     }
                     
+                    // Overlay ein/ausblenden
                     const overlay = document.getElementById('dt-overlay-controls');
+                    if (data.media_overlay_visible) {
+                        overlay.classList.add('visible');
+                        if (mediaOverlayTimer) clearTimeout(mediaOverlayTimer);
+                    } else {
+                        overlay.classList.remove('visible');
+                        
+                        // Wenn unsichtbar, starte die automatischen Timer!
+                        if (data.media_url.endsWith('.mp4')) {
+                            const vid = document.getElementById('dt-video');
+                            if (vid) vid.onended = () => { sendToPython({type: "KEY_PRESS", key: "MEDIA_ENDED"}); };
+                        } else {
+                            if (mediaOverlayTimer) clearTimeout(mediaOverlayTimer);
+                            mediaOverlayTimer = setTimeout(() => { sendToPython({type: "KEY_PRESS", key: "MEDIA_ENDED"}); }, 5000);
+                        }
+                    }
+                    
                     overlay.innerHTML = '';
                     data.answers.forEach((ans, idx) => {
                         const btn = document.createElement('div');
@@ -588,9 +609,8 @@
                 
                 // 2. QUESTIONS MODE
                 } else {
-                    // Falls noch ein Video lief, pausieren wir es jetzt!
                     const vid = document.getElementById('dt-video');
-                    if (vid) vid.pause();
+                    if (vid) vid.pause(); // Video stoppen, wenn wir zur Frage gehen!
                     
                     document.getElementById('dt-fullscreen-media-container').style.display = 'none';
                     document.getElementById('driving-ui-container').style.display = 'flex';
@@ -600,19 +620,13 @@
                     if (data.question) document.getElementById('dt-question-text').innerText = data.question;
                     
                     const ansCol = document.getElementById('dt-answer-col');
+                    ansCol.innerHTML = '';
                     
                     if (data.is_text_input) {
-                        let htmlStr = "";
-                        // "Medium ansehen" Button, falls wir von Vollbild auf Text gesprungen sind
-                        if (data.has_media) {
-                            htmlStr += `<div class="dt-btn action-btn ${13 === data.focus_idx ? 'focused' : ''}" style="margin-bottom: 15px;"><div>📷 MEDIUM ANSEHEN</div></div>`;
-                        }
-                        htmlStr += `<div class="dt-input-display" id="dt-input-display">${data.current_input || " "}</div>`;
+                        let htmlStr = `<div class="dt-input-display" id="dt-input-display">${data.current_input || " "}</div>`;
                         ansCol.innerHTML = htmlStr;
                         
-                        const pad = document.createElement('div'); 
-                        pad.className = 'dt-numpad';
-                        // Das Komma ist jetzt dabei!
+                        const pad = document.createElement('div'); pad.className = 'dt-numpad';
                         const keys = ['1','2','3','4','5','6','7','8','9','Löschen','0',',', data.submit_text];
                         
                         keys.forEach((k, idx) => {
@@ -624,15 +638,24 @@
                         });
                         ansCol.appendChild(pad);
                         
+                        // Media Button (falls vorhanden) ganz unten rendern
+                        if (data.has_media) {
+                            const mediaBtn = document.createElement('div');
+                            mediaBtn.className = `dt-btn action-btn ${13 === data.focus_idx ? 'focused' : ''}`;
+                            mediaBtn.style.marginTop = '25px';
+                            mediaBtn.innerHTML = `<div>📷 MEDIUM ANSEHEN</div>`;
+                            ansCol.appendChild(mediaBtn);
+                        }
                     } else {
-                        ansCol.innerHTML = '';
                         data.answers.forEach((ans, idx) => {
                             const btn = document.createElement('div');
                             btn.className = `dt-btn ${idx === data.focus_idx ? 'focused' : ''} ${ans.checked ? 'checked' : ''}`;
+                            if (ans.spaced) btn.style.marginTop = "25px"; // Der gewünschte Abstand!
+                            
                             if (ans.is_action) {
                                 btn.classList.add('action-btn');
                                 if (ans.action_color === 'green') btn.classList.add('submit-btn');
-                                btn.innerHTML = `<div>${ans.text}</div>`; // KEINE CHECKBOX MEHR!
+                                btn.innerHTML = `<div>${ans.text}</div>`;
                             } else {
                                 btn.innerHTML = `<div class="dt-checkbox">${ans.checked ? '✓' : ''}</div><div>${ans.text}</div>`;
                             }
